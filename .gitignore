@@ -1,0 +1,61 @@
+
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Aa]ssets/AssetStoreTools*
+/[Aa]ssets/Plugins/Editor/JetBrains*
+
+# Unity generated meta files
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Unity crash reports and logs
+sysinfo.txt
+*.rpt
+*.log
+
+# Visual Studio / MonoDevelop files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# macOS files
+.DS_Store
+
+# Windows files
+Thumbs.db
+Desktop.ini
+
+# Package manager
+/[Pp]ackages/*
+!/Packages/manifest.json
+!/Packages/packages-lock.json
+
+# Build output
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# Ignore player settings unless you want to track them
+/[Uu]ser[Ss]ettings/PlayerSettings.asset
+
+# Other
+/[Aa]ssets/[Ss]tandalone[Aa]r/[Aa]r[Ll]ibrary/
