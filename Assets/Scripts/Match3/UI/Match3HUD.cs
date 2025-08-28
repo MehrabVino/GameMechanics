@@ -22,7 +22,7 @@ namespace MechanicGames.Match3
 		{
 			if (mechanic == null)
 			{
-				mechanic = FindObjectOfType<Match3Mechanic>();
+				mechanic = FindFirstObjectByType<Match3Mechanic>();
 			}
 		}
 

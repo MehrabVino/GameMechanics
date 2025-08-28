@@ -1,31 +1,31 @@
-MechanicGames - Modular Mechanics and Match-3 Sample
+MechanicGames - Modular Mechanics (Match-3 + BlockBlast)
 
 Overview
-This Unity project demonstrates a small, modular mechanic framework and a fully playable Match-3 mechanic that follows SOLID principles. It includes:
+This Unity project provides a small, modular mechanic framework with two sample mechanics:
 - Core pluggable mechanic interface and controller
-- Match-3 board logic (swap, match, cascade, refill)
-- Runtime view with animations (swap, neighbor pulse, spawn glow) and score popups
-- Theming via ScriptableObject (tile sprites/colors, background)
-- Simple UI HUD to show score
+- Match-3: swap, match, cascade, refill with runtime view and HUD
+- BlockBlast: place shapes and clear full rows/columns with previews, pop/flash feedback
 
 Unity Version
 - Use the same Unity version listed in ProjectSettings/ProjectVersion.txt
 
 Folder Structure (relevant)
-- Assets/Scripts/Core: core mechanic interface and controller
-- Assets/Scripts/Match3: match-3 logic, theme, runtime view, HUD
+- Assets/Scripts/Core: interfaces, controller, pooling, tile factory (quad)
+- Assets/Scripts/Match3: board logic, runtime view, HUD
+- Assets/Scripts/BlockBlast: board logic, mechanic, HUD
 
-How to Run
+Quick Run Roadmap
 1) Open Scenes/SampleScene.
-2) In Hierarchy, create an empty GameObject "Mechanics" and add MechanicController.
-3) Create an empty GameObject "Match3" and add Match3Mechanic.
-4) Under "Match3", create empty GameObject "Match3View" and add Match3RuntimeView.
-5) In MechanicController, add the Match3 GameObject to "Mechanic Behaviours".
-6) Create a Canvas (UI) and Text to display score. Add Match3HUD to the Text (or a parent) and assign:
-   - Mechanic: the Match3 GameObject
-   - Score Text: the Text component
-7) Ensure the main camera is tagged MainCamera and set to Orthographic so the board is visible.
-8) Press Play. Click-drag (or click-release) adjacent tiles to swap. Valid swaps clear, cascade, and refill.
+2) Create GameObject "Mechanics" → add `MechanicController`.
+3) Create GameObject "Match3" → add `Match3Mechanic` → child "Match3View" with `Match3RuntimeView`.
+4) Create GameObject "BlockBlast" → add `BlockBlastMechanic`.
+   - Optional: assign `tilePrefab` (quad with material) or create a `QuadTileFactory` asset and assign to the mechanic.
+5) In `MechanicController`, add both "Match3" and "BlockBlast" to Mechanic Behaviours.
+6) Create Canvas → Text for Match3 score → add `Match3HUD` and bind score text. Create another Text for BlockBlast score → add `BlockBlastHUD` and bind.
+7) Ensure Main Camera is Orthographic and looks at the board areas.
+8) Play.
+   - Match-3: drag adjacent tiles to swap; valid swaps clear and cascade.
+   - BlockBlast: hover shows placeholder; LMB places; R rotates; 1/2/3 selects from queue.
 
 Theming
 1) Create a Match3Theme asset: Right-click in Project window → Create → MechanicGames → Match3 Theme.
@@ -35,10 +35,12 @@ Theming
 5) You can switch themes at runtime via Match3Mechanic.SetTheme(newThemeAsset).
 
 UI
-- Match3HUD uses Unity UI (Text) to show score. For TextMeshPro, create a TMP variant and bind TMP_Text.
+- `Match3HUD`: Unity UI (Text) score binding. For TMP, swap to TMP_Text in code.
+- `BlockBlastHUD`: Unity UI (Text) score binding; mechanic handles previews and feedback.
 
 Controls
 - Left mouse: select/drag adjacent tile to swap.
+- BlockBlast: Left mouse to place shape, R to rotate, 1-3 to select from queue.
 
 Architecture and SOLID
 
@@ -60,14 +62,22 @@ Liskov Substitution / Interface Segregation
 Dependency Inversion
 - The view reads through IMatch3Context/IMatch3BoardReadOnly rather than concrete types. Mechanic implements the context.
 
-Extending
-- Add UI polish (TextMeshPro, animated counters, buttons) by replacing Match3HUD.
-- Add special tiles: extend Match3Board to mark special effects and teach view to animate them.
-- Add new mechanics: create a component implementing IGameMechanic and plug it into MechanicController.
+Scripts Overview
+- Core
+  - `IGameMechanic`: interface for pluggable mechanics.
+  - `MechanicController`: bootstraps and toggles mechanics.
+  - `SimpleGameObjectPool`: basic pooled instantiation for popups.
+  - `ITileFactory` / `QuadTileFactory`: modular tile creation (quad + material by default).
+- Match3
+  - `Match3Board` (read-only used by view), `Match3Mechanic`, `Match3RuntimeView`, `Match3HUD`.
+- BlockBlast
+  - `BlockBlastBoard`: occupancy grid; placement and full-line clearing; exposes last placed/cleared.
+  - `BlockBlastMechanic`: input, queue/rotate, placeholder preview, tile rendering, pop/flash feedback.
+  - `BlockBlastHUD`: score binding.
 
 Notes
 - Gizmos are for scene visualization; runtime view renders in Game view using SpriteRenderers.
-- All timings/intensities for pulses/glow are editable in Match3RuntimeView.
+- All timings/intensities for pulses/glow are editable in Match3RuntimeView. BlockBlastRuntimeView uses simple popups/Debug.DrawLine flashes.
 
 
 
