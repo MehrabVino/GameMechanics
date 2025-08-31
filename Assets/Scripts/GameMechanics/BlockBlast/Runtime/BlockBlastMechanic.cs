@@ -2,10 +2,11 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using MechanicGames.Shared;
 
 namespace MechanicGames.BlockBlast
 {
-    public class BlockBlastMechanic : MonoBehaviour
+    public class BlockBlastMechanic : MonoBehaviour, IGameMechanic
     {
         [Header("System References")]
         [SerializeField] private BlockBlastGameManager gameManager;
@@ -83,11 +84,26 @@ namespace MechanicGames.BlockBlast
         private int nextTilesCount => gameConfig != null ? gameConfig.NextTilesCount : 3;
         private float nextTileSize => gameConfig != null ? gameConfig.NextTileSize : 60f;
         private float nextTileSpacing => gameConfig != null ? gameConfig.NextTileSpacing : 10f;
+        private float tileGlowDuration => gameConfig != null ? gameConfig.TileGlowDuration : 0.5f;
+        private float tileGlowIntensity => gameConfig != null ? gameConfig.TileGlowIntensity : 0.3f;
         
         // Public properties for UI access
         public int Score => score;
         public int ComboCount => comboCount;
         public float ComboMultiplier => currentComboMultiplier;
+        
+        // IGameMechanic interface properties
+        public bool IsGameActive => gameManager != null ? gameManager.IsGameActive : false;
+        public bool IsPaused => gameManager != null ? gameManager.IsPaused : false;
+        public int CurrentScore => score;
+        public int HighScore => gameManager != null ? gameManager.HighScore : 0;
+        
+        // Events
+        public System.Action OnGameStart { get; set; }
+        public System.Action OnGamePause { get; set; }
+        public System.Action OnGameResume { get; set; }
+        public System.Action OnGameOver { get; set; }
+        public System.Action<int> OnScoreChanged { get; set; }
         
         void Start()
         {
@@ -162,6 +178,82 @@ namespace MechanicGames.BlockBlast
             InitializeNextTiles();
             GenerateNewShape();
             UpdateUI();
+        }
+        
+        // IGameMechanic interface methods
+        public void StartGame()
+        {
+            if (gameManager != null)
+            {
+                gameManager.StartGame();
+            }
+            OnGameStart?.Invoke();
+        }
+        
+        public void PauseGame()
+        {
+            if (gameManager != null)
+            {
+                gameManager.PauseGame();
+            }
+            OnGamePause?.Invoke();
+        }
+        
+        public void ResumeGame()
+        {
+            if (gameManager != null)
+            {
+                gameManager.ResumeGame();
+            }
+            OnGameResume?.Invoke();
+        }
+        
+        public void EndGame()
+        {
+            if (gameManager != null)
+            {
+                gameManager.EndGame();
+            }
+            OnGameOver?.Invoke();
+        }
+        
+        public void ResetGame()
+        {
+            score = 0;
+            ResetCombo();
+            ClearBoard();
+            InitializeNextTiles();
+            GenerateNewShape();
+            UpdateUI();
+        }
+        
+        public void UpdateScore(int newScore)
+        {
+            score = newScore;
+            OnScoreChanged?.Invoke(score);
+        }
+        
+        public void AddScore(int points)
+        {
+            score += points;
+            OnScoreChanged?.Invoke(score);
+        }
+        
+        void ClearBoard()
+        {
+            if (board == null) return;
+            
+            for (int x = 0; x < boardWidth; x++)
+            {
+                for (int y = 0; y < boardHeight; y++)
+                {
+                    board[x, y] = 0;
+                    if (tileImages[x, y] != null)
+                    {
+                        tileImages[x, y].color = Color.clear;
+                    }
+                }
+            }
         }
         
         void CreateBackgroundTiles()
@@ -847,31 +939,6 @@ namespace MechanicGames.BlockBlast
                     }
                 }
             }
-        }
-        
-        public void ResetGame()
-        {
-            for (int x = 0; x < boardWidth; x++)
-            {
-                for (int y = 0; y < boardHeight; y++)
-                {
-                    board[x, y] = 0;
-                    if (tileImages[x, y] != null)
-                    {
-                        tileImages[x, y].color = Color.clear;
-                    }
-                }
-            }
-            
-            score = 0;
-            ResetCombo();
-            
-            // Reset next tiles
-            nextShapes.Clear();
-            InitializeNextTiles();
-            
-            GenerateNewShape();
-            UpdateUI();
         }
         
         // Combo System Methods

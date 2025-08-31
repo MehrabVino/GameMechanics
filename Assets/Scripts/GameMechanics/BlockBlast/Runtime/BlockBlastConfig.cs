@@ -39,6 +39,8 @@ namespace MechanicGames.BlockBlast
         [SerializeField] private float tileDropSpeed = 0.1f;
         [SerializeField] private float tileDropBounce = 0.2f;
         [SerializeField] private float tileDropBounceHeight = 20f;
+        [SerializeField] private float tileGlowDuration = 0.5f;
+        [SerializeField] private float tileGlowIntensity = 0.3f;
         
         [Header("Combo System")]
         [SerializeField] private float comboMultiplier = 1.2f;
@@ -82,6 +84,8 @@ namespace MechanicGames.BlockBlast
         public float TileDropSpeed => tileDropSpeed / animationSpeedMultiplier;
         public float TileDropBounce => isMobileBuild ? tileDropBounce * mobileEffectScale : tileDropBounce;
         public float TileDropBounceHeight => isMobileBuild ? tileDropBounceHeight * mobileEffectScale : tileDropBounceHeight;
+        public float TileGlowDuration => tileGlowDuration;
+        public float TileGlowIntensity => tileGlowIntensity;
         public float ComboMultiplier => comboMultiplier;
         public float ComboDecayTime => comboDecayTime;
         public Color[] ComboColors => comboColors;

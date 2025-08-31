@@ -1,4 +1,4 @@
-using MechanicGames.Core;
+using MechanicGames.Shared;
 using UnityEngine;
 
 namespace MechanicGames.Match3
@@ -36,6 +36,19 @@ namespace MechanicGames.Match3
 		private int currentScore;
 
 		public int Score => currentScore;
+
+		// IGameMechanic interface implementation
+		public bool IsGameActive => isActive;
+		public bool IsPaused => false; // Match3 doesn't have pause functionality
+		public int CurrentScore => currentScore;
+		public int HighScore => PlayerPrefs.GetInt("Match3_HighScore", 0);
+		
+		// Events
+		public System.Action OnGameStart { get; set; }
+		public System.Action OnGamePause { get; set; }
+		public System.Action OnGameResume { get; set; }
+		public System.Action OnGameOver { get; set; }
+		public System.Action<int> OnScoreChanged { get; set; }
 
 		public int BoardWidth => board != null ? board.Width : 0;
 		public int BoardHeight => board != null ? board.Height : 0;
@@ -81,6 +94,61 @@ namespace MechanicGames.Match3
 		{
 			isActive = value;
 			enabled = value;
+		}
+
+		// IGameMechanic interface methods
+		public void StartGame()
+		{
+			isActive = true;
+			enabled = true;
+			currentScore = 0;
+			OnGameStart?.Invoke();
+		}
+
+		public void PauseGame()
+		{
+			// Match3 doesn't support pause, but we'll implement it for interface compliance
+			OnGamePause?.Invoke();
+		}
+
+		public void ResumeGame()
+		{
+			// Match3 doesn't support pause, but we'll implement it for interface compliance
+			OnGameResume?.Invoke();
+		}
+
+		public void EndGame()
+		{
+			isActive = false;
+			enabled = false;
+			// Save high score
+			if (currentScore > HighScore)
+			{
+				PlayerPrefs.SetInt("Match3_HighScore", currentScore);
+				PlayerPrefs.Save();
+			}
+			OnGameOver?.Invoke();
+		}
+
+		public void ResetGame()
+		{
+			currentScore = 0;
+			if (board != null)
+			{
+				board.Initialize();
+			}
+		}
+
+		public void UpdateScore(int newScore)
+		{
+			currentScore = newScore;
+			OnScoreChanged?.Invoke(currentScore);
+		}
+
+		public void AddScore(int points)
+		{
+			currentScore += points;
+			OnScoreChanged?.Invoke(currentScore);
 		}
 
 		private void Update()
@@ -132,7 +200,7 @@ namespace MechanicGames.Match3
 			{
 				int baseScore = cleared * scorePerTile;
 				int chainBonus = Mathf.Max(0, chains - 1) * bonusPerChain * cleared;
-				currentScore += baseScore + chainBonus;
+				AddScore(baseScore + chainBonus);
 				if (view != null)
 				{
 					Vector3 popupPos = BoardOriginWorld + new Vector3((a.x + b.x + 1f) * 0.5f * CellSize, (a.y + b.y + 1f) * 0.5f * CellSize, 0f);

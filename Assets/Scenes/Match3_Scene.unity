@@ -128,7 +128,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 488878182}
-  - component: {fileID: 488878181}
   m_Layer: 0
   m_Name: GameMechanicController
   m_TagString: Untagged
@@ -136,20 +135,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &488878181
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 488878180}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7cedfc5bd9f37dd48a18891680e4cc48, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  mechanicBehaviours:
-  - {fileID: 1276421650}
 --- !u!4 &488878182
 Transform:
   m_ObjectHideFlags: 0

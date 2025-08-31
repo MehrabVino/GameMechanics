@@ -434,5 +434,12 @@ namespace MechanicGames.BlockBlast
         {
             gameMechanic = mechanic;
         }
+        
+        // Method to set the game manager reference
+        public void SetGameManager(BlockBlastGameManager manager)
+        {
+            // Store reference to game manager if needed for future use
+            // Currently not used but added for interface consistency
+        }
     }
 }
