@@ -1,10 +1,54 @@
-# GameMechanics - Unity Game Mechanics Framework
+# MechanicGames - Unity Game Mechanics Framework
 
-A comprehensive Unity framework providing modular, reusable game mechanics for different game types. This project includes implementations for Match3 and BlockBlast game mechanics with a clean, extensible architecture.
+A comprehensive Unity framework providing modular, reusable game mechanics for different game types. This project includes implementations for **Match3** and **BlockBlast** game mechanics with a clean, extensible architecture.
 
 ## 🎯 Project Overview
 
-GameMechanics is designed to provide a solid foundation for building various game types in Unity. Each mechanic is self-contained, follows SOLID principles, and can be easily integrated into existing projects or used as a starting point for new games.
+MechanicGames is designed to provide a solid foundation for building various game types in Unity. Each mechanic is self-contained, follows SOLID principles, and can be easily integrated into existing projects or used as a starting point for new games.
+
+## 🎮 Featured Game Mechanics
+
+### 🟦 Match3 - Classic Puzzle Game
+A fully-featured match-3 puzzle game mechanic with:
+- **Grid-based board system** with customizable dimensions (default: 8x8)
+- **Smart match detection** for horizontal, vertical, and diagonal patterns
+- **Cascade system** with chain reactions and combo multipliers
+- **Score calculation** with configurable points per tile and chain bonuses
+- **Theme system** for easy visual customization with sprites and colors
+- **Event-driven architecture** for smooth UI updates and animations
+- **Mouse-based input** with drag-and-drop tile swapping
+- **Gizmo rendering** for easy debugging and development
+- **Clean, modular architecture** with clear separation of concerns
+
+**Key Components:**
+- `Match3Mechanic`: Main game controller implementing `IGameMechanic` (MonoBehaviour)
+- `Match3Board`: Pure C# logic class for grid management and match resolution (Serializable)
+- `Match3RuntimeView`: Visual representation and animation controller (MonoBehaviour, auto-connects to mechanic)
+- `Match3Theme`: ScriptableObject-based theming system
+- `Match3HUD`: Simple score display UI component (MonoBehaviour)
+
+**Gameplay Features:**
+- Swap adjacent tiles to create matches of 3 or more
+- Automatic cascade resolution with chain reactions
+- Score multipliers for longer chains
+- Configurable tile types and board dimensions
+- Built-in high score system using PlayerPrefs
+
+### 🟨 BlockBlast - Block-Matching Puzzle
+A block-matching puzzle game mechanic featuring:
+- **Shape-based gameplay** with falling block pieces
+- **Combo system** with multipliers and chain reactions
+- **Progressive difficulty** with increasing complexity
+- **Visual effects** including screen shake and particle systems
+- **Responsive UI** that adapts to different screen sizes
+- **Object pooling** for optimal performance
+
+**Key Components:**
+- `BlockBlastMechanic`: Core game logic implementing `IGameMechanic`
+- `BlockBlastGameManager`: Game state and progression management
+- `BlockBlastEffects`: Visual effects and screen shake system
+- `BlockBlastGameUI`: Comprehensive UI system with multiple panels
+- `BlockBlastObjectPool`: Performance-optimized object pooling
 
 ## 📁 Project Structure
 
@@ -21,7 +65,7 @@ Assets/
 │       ├── Match3/                          # Match3 game mechanic
 │       │   ├── Board/                       # Board logic and management
 │       │   │   ├── IMatch3BoardReadOnly.cs # Read-only board interface
-│       │   │   └── Match3Board.cs          # Main board implementation
+│       │   │   └── Match3Board.cs          # Pure C# board logic class
 │       │   ├── Runtime/                     # Core game logic
 │       │   │   ├── IMatch3Context.cs       # Game context interface
 │       │   │   ├── Match3Mechanic.cs       # Main game mechanic
@@ -44,40 +88,106 @@ Assets/
 │           │   └── BlockBlastEffects.cs     # Particle and screen effects
 │           └── Utilities/                   # BlockBlast-specific utilities
 │               └── BlockBlastObjectPool.cs  # Object pooling system
+├── Scenes/
+│   ├── Match3Scene.unity                   # Ready-to-play Match3 scene
+│   └── Match3_Scene.unity                  # Alternative Match3 scene
+├── Resources/
+│   └── Match3/
+│       └── DefaultTheme.asset              # Default Match3 theme configuration
+└── Prefabs/
+    └── BlockBlast/                         # BlockBlast prefab assets
 ```
 
-## 🎮 Available Game Mechanics
+## 🚀 Quick Start - Match3
 
-### 1. Match3 Mechanic
-A classic match-3 puzzle game mechanic with:
-- **Grid-based board system** with customizable dimensions
-- **Match detection** for horizontal, vertical, and diagonal patterns
-- **Chain reaction system** for cascading matches
-- **Score calculation** with combo multipliers
-- **Theme system** for easy visual customization
-- **Event-driven architecture** for UI updates
+### Option 1: Use Existing Scene (Recommended)
+1. **Open Unity** and load the project
+2. **Navigate to** `Assets/Scenes/` folder
+3. **Double-click** on `Match3Scene.unity` or `Match3_Scene.unity`
+4. **Press Play** button to start playing immediately
 
-**Key Features:**
-- `Match3Board`: Handles board logic, tile placement, and match detection
-- `Match3Mechanic`: Main game controller implementing `IGameMechanic`
-- `Match3Theme`: Visual theming system for different game styles
-- `Match3RuntimeView`: Manages runtime visual updates and animations
+### Option 2: Create New Scene from Scratch
 
-### 2. BlockBlast Mechanic
-A block-matching puzzle game mechanic featuring:
-- **Shape-based gameplay** with falling block pieces
-- **Combo system** with multipliers and chain reactions
-- **Progressive difficulty** with increasing complexity
-- **Visual effects** including screen shake and particle systems
-- **Responsive UI** that adapts to different screen sizes
-- **Object pooling** for optimal performance
+#### 1. Basic Scene Setup
+```
+Scene Hierarchy:
+├── Main Camera (Orthographic)
+├── Directional Light
+├── Canvas (UI)
+├── GameMechanics (Empty GameObject)
+│   └── Match3
+└── UI (Empty GameObject)
+    └── Match3HUD
+```
 
-**Key Features:**
-- `BlockBlastMechanic`: Core game logic implementing `IGameMechanic`
-- `BlockBlastGameManager`: Game state and progression management
-- `BlockBlastEffects`: Visual effects and screen shake system
-- `BlockBlastGameUI`: Comprehensive UI system with multiple panels
-- `BlockBlastObjectPool`: Performance-optimized object pooling
+#### 2. Configure Match3 Mechanic
+1. **Create Empty GameObject** → "Match3"
+2. **Add Component** → `Match3Mechanic`
+3. **Configure in Inspector:**
+   - **Board Width**: 8 (default)
+   - **Board Height**: 8 (default)
+   - **Cell Size**: 1.0
+   - **Score Per Tile**: 10
+   - **Bonus Per Chain**: 5
+   - **Draw Gizmos**: true (for debugging)
+4. **Board automatically initializes** when the component starts (no manual setup needed)
+
+#### 3. Configure Match3 Board
+The `Match3Board` is a pure C# class that gets instantiated automatically by `Match3Mechanic`. You can configure the board settings directly in the Match3Mechanic inspector:
+- **Board Width**: 8 (default)
+- **Board Height**: 8 (default)
+- **Number of Tile Types**: 6 (default)
+- **Seed**: 0 (for random generation, or set specific value for reproducible boards)
+
+#### 4. Create Match3 Theme
+1. **Right-click** in Project window → Create → ScriptableObject → Match3 Theme
+2. **Configure** the theme with:
+   - **Tile Definitions**: Array of tile types with sprites and colors
+   - **Background Sprite**: Board background image
+   - **Background Color**: Board background color
+
+#### 5. Set Up Match3 View
+1. **Create Empty** child under Match3 → "View"
+2. **Add Component** → `Match3RuntimeView`
+3. **The view automatically connects** to the parent Match3Mechanic and gets all necessary data from it
+4. **No manual reference assignment needed** - the view finds the mechanic automatically
+
+#### 6. Configure Camera
+1. **Select Main Camera**
+2. **Set Projection** to "Orthographic"
+3. **Set Size** to 5-10 (adjust based on board size)
+4. **Position** at (0, 0, -10)
+
+#### 7. Set Up UI
+1. **Create UI → Canvas**
+2. **Set Render Mode** to "Screen Space - Overlay"
+3. **Add Canvas Scaler** component
+4. **Set UI Scale Mode** to "Scale With Screen Size"
+5. **Create UI → Text** under Canvas
+6. **Add Component** → `Match3HUD`
+7. **Assign References**:
+   - **Score Text**: Drag the Text component
+   - **Game Mechanic**: Drag the Match3Mechanic
+
+## 🎮 How to Play Match3
+
+### Controls
+- **Mouse**: Click and drag adjacent tiles to swap them
+- **Goal**: Create matches of 3 or more identical tiles
+- **Scoring**: Earn points for each tile cleared + chain bonuses
+
+### Gameplay Mechanics
+1. **Tile Swapping**: Click and drag a tile to an adjacent position
+2. **Match Detection**: Automatic detection of horizontal, vertical, and diagonal matches
+3. **Cascade System**: Matched tiles disappear, new tiles fall down
+4. **Chain Reactions**: Multiple matches in sequence create combos
+5. **Score Multipliers**: Longer chains provide bonus points
+
+### Configuration Options
+- **Board Size**: Customizable width and height
+- **Tile Types**: Configurable number of different tile types
+- **Scoring**: Adjustable points per tile and chain bonuses
+- **Visual Theme**: Customizable colors, sprites, and backgrounds
 
 ## 🔧 Core Architecture
 
@@ -110,317 +220,189 @@ public interface IGameMechanic
 }
 ```
 
+### Match3-Specific Interfaces
+```csharp
+public interface IMatch3Context
+{
+    IMatch3BoardReadOnly Board { get; }
+    int BoardWidth { get; }
+    int BoardHeight { get; }
+    float CellSize { get; }
+    Vector3 BoardOriginWorld { get; }
+    Match3Theme Theme { get; }
+    IReadOnlyList<Vector2Int> ClearedCells { get; }
+    IReadOnlyList<Vector2Int> SpawnedCells { get; }
+}
+
+public interface IMatch3BoardReadOnly
+{
+    int Width { get; }
+    int Height { get; }
+    int GetTile(int x, int y);
+    IReadOnlyList<Vector2Int> LastClearedCells { get; }
+    IReadOnlyList<Vector2Int> LastSpawnedCells { get; }
+}
+```
+
+### Match3 Architecture Notes
+- **`Match3Board`**: Pure C# class marked with `[Serializable]`, instantiated directly in `Match3Mechanic`
+- **`Match3Mechanic`**: MonoBehaviour that contains the board instance and handles Unity-specific logic
+- **`Match3RuntimeView`**: Automatically connects to parent mechanic, no manual reference assignment needed
+- **Separation of Concerns**: Board logic is pure C# (testable, portable), Unity integration is in the Mechanic
+
+### New Clean Implementation Features
+- **Modular Design**: Each component has a single responsibility and clear interfaces
+- **Comprehensive Documentation**: Extensive XML documentation and inline comments
+- **Error Handling**: Robust null checks and graceful fallbacks throughout
+- **Performance Optimized**: Efficient algorithms for match detection and cascade resolution
+- **Animation System**: Smooth tile movements, pulse effects, and visual feedback
+- **Theme Support**: Flexible theming system with fallback to default colors
+- **Debug Support**: Built-in gizmo rendering and comprehensive logging
+- **Complete Theme Integration**: Full theme support with automatic tile spawning, colors, and sprites
+
+### Enhanced Theme System
+- **Smart Tile Spawning**: Theme-aware tile generation with weighted spawning support
+- **Automatic Visual Updates**: Tiles automatically get correct sprites and colors from theme
+- **Priority-Based Rendering**: Tile Definitions → Legacy Sprites → Legacy Colors → Fallback
+- **Performance Optimized**: Cached theme data and efficient sprite/color lookups
+- **Editor Integration**: Full Unity inspector support with validation and tooltips
+
 ### Shared Utilities
 - **GameObjectPool**: Generic object pooling system for performance optimization
 - **Event System**: Consistent event handling across all mechanics
 - **Configuration**: Centralized configuration management
 
-## 🚀 Implementation Guide
+## 🎨 Customization
 
-### Adding a New Game Mechanic
-
-1. **Create the mechanic directory structure:**
-   ```
-   Assets/Scripts/GameMechanics/YourMechanic/
-   ├── Runtime/          # Core game logic
-   ├── UI/              # User interface components
-   ├── Effects/          # Visual/audio effects
-   └── Utilities/        # Mechanic-specific utilities
-   ```
-
-2. **Implement IGameMechanic interface:**
+### Match3 Visual Theming
+1. **Create Theme Asset**: Right-click → Create → ScriptableObject → Match3 Theme
+2. **Configure Tile Definitions**:
    ```csharp
-   public class YourMechanic : MonoBehaviour, IGameMechanic
+   [System.Serializable]
+   public sealed class TileDefinition
    {
-       // Implement all required properties and methods
-       public bool IsGameActive => isActive;
-       public bool IsPaused => isPaused;
-       // ... other properties
-       
-       public void StartGame() { /* Implementation */ }
-       public void PauseGame() { /* Implementation */ }
-       // ... other methods
+       public string id;
+       public Sprite sprite;
+       public Color color = Color.white;
    }
    ```
+3. **Set Background**: Choose background sprite and color
+4. **Assign to Mechanic**: Drag theme asset to Match3Mechanic's Theme field
 
-3. **Create configuration class:**
-   ```csharp
-   [CreateAssetMenu(fileName = "YourMechanicConfig", menuName = "GameMechanics/YourMechanic/Config")]
-   public class YourMechanicConfig : ScriptableObject
-   {
-       [Header("Game Settings")]
-       [SerializeField] private float gameSpeed = 1f;
-       // ... other configurable parameters
-   }
-   ```
+### Gameplay Balancing
+- **Score Values**: Adjust `scorePerTile` and `bonusPerChain` in Match3Mechanic inspector
+- **Board Dimensions**: Modify board settings in Match3Mechanic inspector (board is automatically instantiated)
+- **Tile Types**: Change `numberOfTileTypes` in the board configuration
+- **Board Seed**: Set specific seed value for reproducible board layouts
 
-4. **Add UI components:**
-   ```csharp
-   public class YourMechanicUI : MonoBehaviour
-   {
-       [SerializeField] private YourMechanic gameMechanic;
-       // ... UI implementation
-   }
-   ```
+### UI Customization
+- **Score Format**: Modify `scoreFormat` string in Match3HUD
+- **Text Styling**: Customize Text component appearance
+- **Layout**: Adjust Canvas settings for different screen sizes
 
-## 🎮 How to Run and Use the Project
+## 🚀 Performance Optimization
 
-### Prerequisites Setup
+### Built-in Optimizations
+- **Object Pooling**: Generic GameObjectPool system
+- **Efficient Match Detection**: Optimized algorithms for finding matches
+- **Event-Driven Updates**: UI updates only when needed
+- **Minimal Garbage Collection**: Careful memory management
 
-1. **Unity Version**: Ensure you have Unity 2022.3 LTS or later installed
-2. **Required Packages**: The project will automatically import these packages:
-   - **TextMeshPro**: For UI text rendering
-   - **Universal Render Pipeline**: For modern rendering and effects
-   - **Input System**: For input handling (if not already installed)
+### Best Practices
+1. **Use Object Pooling** for frequently created/destroyed objects
+2. **Implement Efficient Match Detection** algorithms
+3. **Minimize Garbage Collection** with proper memory management
+4. **Use Events** instead of Update loops for UI updates
+5. **Batch Rendering** by keeping similar sprites in the same material
 
-### Quick Start - Running the Project
+## 🔍 Troubleshooting
 
-#### Option 1: Using Existing Scenes
-1. **Open Unity** and load the project
-2. **Navigate to** `Assets/Scenes/` folder
-3. **Double-click** on any existing scene (e.g., `SampleScene.unity`)
-4. **Press Play** button to test the mechanics
+### Common Issues
 
-#### Option 2: Creating a New Scene from Scratch
-
-### Step-by-Step Scene Setup
-
-#### 1. Create Basic Scene Structure
-```
-Scene Hierarchy:
-├── Main Camera (Orthographic)
-├── Directional Light
-├── Canvas (UI)
-├── GameMechanics (Empty GameObject)
-│   ├── Match3
-│   └── BlockBlast
-└── UI (Empty GameObject)
-    ├── Match3HUD
-    └── BlockBlastHUD
-```
-
-#### 2. Set Up Camera
-1. **Select Main Camera** in the hierarchy
-2. **Set Projection** to "Orthographic"
-3. **Set Size** to 5-10 (adjust based on your board size)
-4. **Position** at (0, 0, -10)
-
-#### 3. Set Up Canvas
-1. **Create UI → Canvas** (right-click in hierarchy)
-2. **Set Render Mode** to "Screen Space - Overlay"
-3. **Add Canvas Scaler** component
-4. **Set UI Scale Mode** to "Scale With Screen Size"
-
-#### 4. Implement Match3 Mechanic
-
-##### A. Create Match3 GameObject
-1. **Right-click** on GameMechanics → Create Empty
-2. **Rename** to "Match3"
-3. **Add Component** → `Match3Mechanic`
-
-##### B. Configure Match3Mechanic
-1. **Select** the Match3 GameObject
-2. **In Inspector**, configure these fields:
-   - **Board Width**: 8 (default)
-   - **Board Height**: 8 (default)
-   - **Cell Size**: 1.0
-   - **Score Per Tile**: 10
-   - **Bonus Per Chain**: 5
-
-##### C. Create Match3 Board
-1. **Create Empty** child under Match3 → "Board"
-2. **Add Component** → `Match3Board`
-3. **Configure** board dimensions to match mechanic settings
-
-##### D. Create Match3 View
-1. **Create Empty** child under Match3 → "View"
-2. **Add Component** → `Match3RuntimeView`
-3. **Assign References**:
-   - **Board**: Drag the Board GameObject
-   - **Theme**: Create or assign a Match3Theme asset
-
-##### E. Create Match3 Theme
-1. **Right-click** in Project window → Create → ScriptableObject → Match3Theme
-2. **Configure** the theme with:
-   - **Tile Colors**: Array of colors for different tile types
-   - **Background Color**: Board background color
-   - **Cell Size**: Should match mechanic setting
-
-#### 5. Implement BlockBlast Mechanic
-
-##### A. Create BlockBlast GameObject
-1. **Right-click** on GameMechanics → Create Empty
-2. **Rename** to "BlockBlast"
-3. **Add Component** → `BlockBlastMechanic`
-
-##### B. Configure BlockBlastMechanic
-1. **Select** the BlockBlast GameObject
-2. **In Inspector**, configure:
-   - **Board Width**: 10 (default)
-   - **Board Height**: 20 (default)
-   - **Tile Size**: 60
-   - **Next Tiles Count**: 3
-
-##### C. Create BlockBlast Game Manager
-1. **Create Empty** child under BlockBlast → "GameManager"
-2. **Add Component** → `BlockBlastGameManager`
-3. **Assign References**:
-   - **Game Mechanic**: Drag the BlockBlastMechanic
-   - **Game UI**: Will be created next
-
-##### D. Create BlockBlast UI
-1. **Create Empty** child under BlockBlast → "UI"
-2. **Add Component** → `BlockBlastGameUI`
-3. **Configure UI Panels** (create these as child GameObjects):
-   - **Main Menu Panel**
-   - **Game Panel**
-   - **Pause Panel**
-   - **Game Over Panel**
-   - **Settings Panel**
-
-##### E. Create BlockBlast Effects
-1. **Create Empty** child under BlockBlast → "Effects"
-2. **Add Component** → `BlockBlastEffects`
-3. **Configure** particle systems and screen shake settings
-
-#### 6. Set Up UI Components
-
-##### A. Match3 HUD
-1. **Create UI → Text** under Canvas
-2. **Rename** to "Match3HUD"
-3. **Add Component** → `Match3HUD`
-4. **Assign References**:
-   - **Score Text**: Drag the Text component
-   - **Game Mechanic**: Drag the Match3Mechanic
-
-##### B. BlockBlast HUD
-1. **Create UI → Text** under Canvas
-2. **Rename** to "BlockBlastHUD"
-3. **Add Component** → `BlockBlastHUD`
-4. **Assign References**:
-   - **Score Text**: Drag the Text component
-   - **Game Mechanic**: Drag the BlockBlastMechanic
-
-#### 7. Create Configuration Assets
-
-##### A. BlockBlast Config
-1. **Right-click** in Project window → Create → ScriptableObject → BlockBlastConfig
-2. **Configure** game parameters:
-   - **Board Settings**: Width, height, tile size
-   - **Game Settings**: Score values, combo multipliers
-   - **Animation Settings**: Durations, intensities
-
-##### B. Assign Configs
-1. **Select** BlockBlastMechanic
-2. **Drag** the BlockBlastConfig to the "Game Config" field
-3. **Select** Match3Mechanic
-4. **Drag** the Match3Theme to the "Theme" field
-
-### Running and Testing
-
-#### 1. Test Match3
-1. **Press Play** in Unity
-2. **Click and drag** adjacent tiles to swap them
-3. **Watch** for matches and cascading effects
-4. **Check** score updates in the HUD
-
-#### 2. Test BlockBlast
-1. **Press Play** in Unity
-2. **Use mouse** to place blocks
-3. **Press R** to rotate blocks
-4. **Press 1-3** to select from the queue
-5. **Watch** for line clears and combos
-
-### Troubleshooting Common Setup Issues
-
-#### Issue: Scripts Not Found
+#### Scripts Not Found
 - **Solution**: Ensure all scripts are in the correct folders
 - **Check**: Scripts should be in `Assets/Scripts/GameMechanics/`
 
-#### Issue: Missing References
+#### Missing References
 - **Solution**: Check Inspector for missing field assignments
 - **Check**: Ensure all required components are added
+- **Note**: Match3RuntimeView automatically connects to parent Match3Mechanic
 
-#### Issue: UI Not Displaying
+#### UI Not Displaying
 - **Solution**: Verify Canvas setup and UI component references
 - **Check**: Ensure UI elements are children of Canvas
 
-#### Issue: Game Not Responding to Input
+#### Game Not Responding to Input
 - **Solution**: Check Input System package installation
 - **Check**: Verify camera setup and positioning
 
-### Performance Optimization Tips
+#### Match3 Board Not Visible
+- **Solution**: Enable "Draw Gizmos" in Match3Mechanic
+- **Check**: Ensure camera is positioned correctly
+- **Check**: Verify board dimensions and cell size
 
-1. **Object Pooling**: Use the built-in object pooling systems
-2. **Batch Rendering**: Keep similar sprites in the same material
-3. **Efficient Updates**: Use Update() sparingly, prefer events
-4. **Memory Management**: Avoid creating objects in Update loops
+#### NullReferenceException in Match3Board.GetTile
+- **Solution**: The board is automatically initialized in Awake() method
+- **Check**: Ensure Match3Mechanic component is properly added to GameObject
+- **Check**: Verify the scene hierarchy has Match3Mechanic as parent of Match3RuntimeView
 
-### Customization Examples
+#### Tiles Not Rendering
+- **Solution**: Check Console for debug messages from Match3RuntimeView
+- **Check**: Ensure Match3RuntimeView is a child of Match3Mechanic GameObject
+- **Check**: Verify camera is positioned correctly and "Draw Gizmos" is enabled
+- **Check**: Look for "Rebuilding tiles" and "Successfully created X tiles" messages in Console
 
-#### Changing Match3 Colors
-1. **Select** your Match3Theme asset
-2. **Modify** the Tile Colors array
-3. **Add/Remove** colors to change tile types
-4. **Adjust** Background Color for board appearance
+#### Sprite Tiling Warning
+- **Solution**: Fixed by using SpriteDrawMode.Simple instead of Sliced
+- **Note**: Dynamically generated sprites work better with Simple mode
+- **Check**: Tiles now use transform scaling instead of sprite size for dimensions
 
-#### Modifying BlockBlast Difficulty
-1. **Select** your BlockBlastConfig asset
-2. **Adjust** Combo Multiplier values
-3. **Modify** Score Per Tile settings
-4. **Change** Board dimensions
+### Debug Tools
+- **Unity Console**: Check for compilation and runtime errors
+- **Unity Profiler**: Monitor performance metrics
+- **Scene Hierarchy**: Verify component relationships
+- **Inspector**: Check serialized field assignments
+- **Gizmos**: Visual debugging for Match3 board layout
 
-### Building for Different Platforms
+## 🎨 Enhanced Theme System
 
-1. **File → Build Settings**
-2. **Select Target Platform** (PC, Mobile, WebGL)
-3. **Add Scenes** to build
-4. **Configure** platform-specific settings
-5. **Build** the project
+### **Smart Tile Spawning**
+The new theme system automatically handles tile spawning with theme-aware generation:
+- **Weighted Spawning**: Control tile rarity with spawn weights (0.0 to 1.0)
+- **Consistent Generation**: Use spawn seeds for reproducible results
+- **Performance Optimized**: Cached theme data for smooth gameplay
 
-### Integration with Existing Projects
+### **Automatic Visual Updates**
+Tiles now automatically get the correct sprites and colors:
+- **Priority System**: Tile Definitions → Legacy Sprites → Legacy Colors → Fallback
+- **Real-time Updates**: Theme changes immediately affect all tiles
+- **Animation Compatible**: Base colors are maintained for smooth effects
 
-1. **Copy** the `GameMechanics` folder to your project
-2. **Import** required packages (TextMeshPro, URP)
-3. **Follow** the setup steps above
-4. **Customize** mechanics to fit your game's needs
-5. **Test** thoroughly before production use
+### **How to Use**
 
-### Next Steps After Setup
+#### **Option 1: Tile Definitions (Recommended)**
+1. Create a `Match3Theme` asset with `tileDefinitions` array
+2. Configure each tile with:
+   - `id`: Unique identifier (e.g., "RedGem", "BlueGem")
+   - `tileValue`: Numeric value (0, 1, 2, etc.)
+   - `sprite`: Custom sprite for the tile
+   - `color`: Fallback color if no sprite
+   - `spawnWeight`: Probability of spawning (0.0 to 1.0)
+   - `canSpawn`: Whether this tile type can appear
+3. Assign the theme to your `Match3Mechanic`
+4. Tiles automatically spawn with correct visuals and weights
 
-1. **Test** all mechanics thoroughly
-2. **Customize** visual appearance and gameplay
-3. **Add** sound effects and music
-4. **Implement** save/load systems
-5. **Add** analytics and achievements
-6. **Optimize** for target platforms
-7. **Create** additional game mechanics using the framework
+#### **Option 2: Legacy Arrays (Fallback)**
+1. Use `tileSprites` array for sprite-based themes
+2. Use `tileColors` array for color-only themes
+3. Assign the theme to your `Match3Mechanic`
+4. System automatically falls back to legacy mode
 
----
-
-### Integrating with Existing Projects
-
-1. **Copy the GameMechanics folder** to your project's Assets/Scripts directory
-2. **Import required dependencies:**
-   - Unity UI (for UI components)
-   - TextMeshPro (for text rendering)
-   - Universal Render Pipeline (for effects)
-3. **Set up the scene hierarchy** following the provided prefab structure
-4. **Configure the mechanic** using the ScriptableObject configuration files
-
-### Customization
-
-#### Visual Theming
-- **Match3**: Use `Match3Theme` ScriptableObject to customize colors, sprites, and visual effects
-- **BlockBlast**: Modify `BlockBlastConfig` for visual parameters and adjust particle systems
-
-#### Gameplay Balancing
-- **Match3**: Adjust score values, combo multipliers, and board dimensions
-- **BlockBlast**: Modify combo system, difficulty progression, and scoring mechanics
-
-#### UI Layout
-- **Responsive Design**: Use the `UIResponsiveLayout` system for adaptive UI
-- **Panel System**: Leverage the panel-based UI architecture for easy customization
+### **Advanced Features**
+- **Theme Validation**: Automatic validation ensures proper configuration
+- **Editor Integration**: Full Unity inspector support with tooltips
+- **Performance**: Efficient sprite/color lookups with caching
+- **Flexibility**: Mix and match different theme approaches
 
 ## 📋 Requirements
 
@@ -430,59 +412,26 @@ Scene Hierarchy:
 - **TextMeshPro**: For UI text rendering
 - **Platforms**: Windows, macOS, Linux, Android, iOS, WebGL
 
-## 🎨 Best Practices
+## 🎯 Next Steps
 
-1. **Performance Optimization**
-   - Use object pooling for frequently created/destroyed objects
-   - Implement efficient match detection algorithms
-   - Minimize garbage collection with proper memory management
+### Immediate Actions
+1. **Test** the existing Match3 scene
+2. **Customize** visual appearance using themes
+3. **Adjust** gameplay parameters for balance
+4. **Add** sound effects and music
 
-2. **Code Organization**
-   - Keep mechanics self-contained and modular
-   - Use interfaces for loose coupling
-   - Implement event-driven architecture for UI updates
+### Advanced Features
+1. **Save/Load System**: Implement persistent high scores
+2. **Level System**: Create multiple board configurations
+3. **Power-ups**: Add special tile types and abilities
+4. **Multiplayer**: Implement turn-based or real-time multiplayer
+5. **Analytics**: Track player behavior and performance
 
-3. **User Experience**
-   - Provide smooth animations and transitions
-   - Implement responsive controls
-   - Use visual feedback for user actions
-
-4. **Extensibility**
-   - Design for easy modification and extension
-   - Use ScriptableObjects for configuration
-   - Implement plugin architecture for new features
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-1. **Compilation Errors**
-   - Ensure all required packages are imported
-   - Check namespace references in using statements
-   - Verify interface implementation completeness
-
-2. **Runtime Errors**
-   - Check component references in the Inspector
-   - Verify configuration asset assignments
-   - Ensure proper scene hierarchy setup
-
-3. **Performance Issues**
-   - Monitor object creation/destruction
-   - Use Unity Profiler to identify bottlenecks
-   - Implement object pooling where appropriate
-
-### Debug Tools
-
-- **Unity Console**: Check for compilation and runtime errors
-- **Unity Profiler**: Monitor performance metrics
-- **Scene Hierarchy**: Verify component relationships
-- **Inspector**: Check serialized field assignments
-
-## 📚 Additional Resources
-
-- **Unity Documentation**: [docs.unity3d.com](https://docs.unity3d.com)
-- **Unity Manual**: [manual.unity3d.com](https://manual.unity3d.com)
-- **Unity Scripting Reference**: [docs.unity3d.com/ScriptReference](https://docs.unity3d.com/ScriptReference)
+### Integration
+1. **Add to Existing Projects**: Copy GameMechanics folder
+2. **Create New Games**: Use as foundation for puzzle games
+3. **Extend Framework**: Add new game mechanics following the pattern
+4. **Customize for Platforms**: Optimize for mobile, console, or PC
 
 ## 🤝 Contributing
 
@@ -501,6 +450,8 @@ This project is provided as-is for educational and development purposes. Feel fr
 ---
 
 **Happy Game Development! 🎮✨**
+
+*Ready to create the next great puzzle game? Start with the Match3 scene and customize it to your heart's content!*
 
 
 

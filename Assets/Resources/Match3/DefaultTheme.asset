@@ -13,19 +13,43 @@ MonoBehaviour:
   m_Name: DefaultTheme
   m_EditorClassIdentifier: 
   tileDefinitions:
-  - id: 0
-    sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
-    color: {r: 1, g: 0, b: 0, a: 1}
   - id: 1
-    sprite: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
+    tileValue: 1
+    sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
     color: {r: 0, g: 1, b: 0.09174347, a: 1}
+    spawnWeight: 1
+    canSpawn: 1
   - id: 2
-    sprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+    tileValue: 2
+    sprite: {fileID: -712631045867808456, guid: b670ab75dde984907b8570040daa08c5, type: 3}
     color: {r: 0.15362263, g: 0, b: 1, a: 1}
+    spawnWeight: 1
+    canSpawn: 1
+  - id: 0
+    tileValue: 0
+    sprite: {fileID: -5177388603050735206, guid: 8884154dfe85442a3a3578be807dbcdf, type: 3}
+    color: {r: 1, g: 0, b: 0, a: 1}
+    spawnWeight: 1
+    canSpawn: 1
   - id: 3
-    sprite: {fileID: 10917, guid: 0000000000000000f000000000000000, type: 0}
+    tileValue: 3
+    sprite: {fileID: 7482667652216324306, guid: 75f5f34dc1b5347e0b8351032682f224, type: 3}
     color: {r: 0.9882878, g: 1, b: 0, a: 1}
-  tileSprites: []
-  tileColors: []
-  backgroundSprite: {fileID: 10911, guid: 0000000000000000f000000000000000, type: 0}
+    spawnWeight: 1
+    canSpawn: 1
+  - id: 4
+    tileValue: 4
+    sprite: {fileID: 3625043607559282579, guid: 19fb86013d8c24d6cb8410c0aadf30fa, type: 3}
+    color: {r: 0.6769943, g: 0, b: 1, a: 1}
+    spawnWeight: 1
+    canSpawn: 1
+  - id: 5
+    tileValue: 5
+    sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
+    color: {r: 0, g: 1, b: 0.76074576, a: 1}
+    spawnWeight: 1
+    canSpawn: 1
+  backgroundSprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
   backgroundColor: {r: 0, g: 0, b: 0, a: 1}
+  useWeightedSpawning: 1
+  spawnSeed: 2
