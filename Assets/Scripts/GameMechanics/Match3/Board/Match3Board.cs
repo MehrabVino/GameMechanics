@@ -19,7 +19,7 @@ namespace MechanicGames.Match3
     /// <summary>
     /// Data structure for special tiles.
     /// </summary>
-    [System.Serializable]
+    [Serializable]
     public struct SpecialTile
     {
         public int baseValue;        // The original tile value
@@ -38,7 +38,7 @@ namespace MechanicGames.Match3
 
     /// <summary>
     /// Pure logic container for a match-3 grid with efficient match detection and cascade resolution.
-    /// Now integrates with Match3Theme for proper tile spawning and supports special tiles.
+    /// Integrates with Match3Theme for tile spawning and supports special tiles.
     /// </summary>
     [Serializable]
     public sealed class Match3Board : IMatch3BoardReadOnly
@@ -112,8 +112,7 @@ namespace MechanicGames.Match3
         /// </summary>
         public int GetTile(int x, int y)
         {
-            if (x < 0 || x >= width || y < 0 || y >= height)
-                return -1;
+            if (!IsValidPosition(x, y)) return -1;
             return tiles[x, y];
         }
 
@@ -122,8 +121,7 @@ namespace MechanicGames.Match3
         /// </summary>
         public SpecialTile GetSpecialTile(int x, int y)
         {
-            if (x < 0 || x >= width || y < 0 || y >= height)
-                return new SpecialTile(-1, SpecialTileType.None);
+            if (!IsValidPosition(x, y)) return new SpecialTile(-1, SpecialTileType.None);
             return specialTiles[x, y];
         }
 
@@ -132,9 +130,12 @@ namespace MechanicGames.Match3
         /// </summary>
         public void SetSpecialTile(int x, int y, SpecialTile specialTile)
         {
-            if (x < 0 || x >= width || y < 0 || y >= height)
-                return;
+            if (!IsValidPosition(x, y)) return;
             specialTiles[x, y] = specialTile;
+            if (specialTile.IsSpecial)
+            {
+                specialTilesCreated.Add(new Vector2Int(x, y));
+            }
         }
 
         /// <summary>
@@ -142,10 +143,11 @@ namespace MechanicGames.Match3
         /// </summary>
         public void SetTile(int x, int y, int value)
         {
-            if (x < 0 || x >= width || y < 0 || y >= height)
-                return;
+            if (!IsValidPosition(x, y)) return;
             tiles[x, y] = value;
         }
+
+        private bool IsValidPosition(int x, int y) => x >= 0 && x < width && y >= 0 && y < height;
 
         /// <summary>
         /// Check if two cells are adjacent (horizontally or vertically).
@@ -159,529 +161,343 @@ namespace MechanicGames.Match3
 
         /// <summary>
         /// Attempt to swap two adjacent tiles and resolve all resulting matches and cascades.
-        /// Returns false if the swap doesn't produce any matches.
         /// </summary>
-        public bool TrySwapAndResolve(Vector2Int a, Vector2Int b, out int totalCleared, out int chainCount)
+        public bool TrySwapAndResolve(Vector2Int a, Vector2Int b, out int cleared, out int chains)
         {
-            totalCleared = 0;
-            chainCount = 0;
+            cleared = 0;
+            chains = 0;
+
+            if (!AreAdjacent(a, b) || !IsValidPosition(a.x, a.y) || !IsValidPosition(b.x, b.y))
+                return false;
+
+            SwapTiles(a, b);
+
+            if (!HasAnyMatch())
+            {
+                SwapTiles(a, b); // Revert swap
+                return false;
+            }
+
+            while (ResolveMatchesAndCascade(ref cleared, ref chains)) { }
+
+            return true;
+        }
+
+        private bool ResolveMatchesAndCascade(ref int cleared, ref int chains)
+        {
             lastClearedCells.Clear();
             lastSpawnedCells.Clear();
             specialTilesCreated.Clear();
 
-            // Validate swap
-            if (!AreAdjacent(a, b))
-                return false;
+            List<Vector2Int> matches = FindAllMatches();
+            if (matches.Count == 0) return false;
 
-            // Perform swap
-            SwapTiles(a, b);
-
-            // Check if swap produces any matches
-            if (!HasAnyMatch())
-            {
-                // Revert swap if no matches
-                SwapTiles(a, b);
-                return false;
-            }
-
-            // Resolve all cascades
-            bool found;
-            do
-            {
-                bool[,] matched = FindAllMatches();
-                found = ClearMatches(matched, out int cleared);
-                totalCleared += cleared;
-                if (found)
-                {
-                    chainCount++;
-                    CreateSpecialTiles(matched);
-                    CollapseAndRefill();
-                }
-            } while (found);
+            ProcessSpecialTiles(matches);
+            ClearMatchedTiles(matches);
+            cleared += matches.Count;
+            chains++;
+            CollapseAndRefill();
 
             return true;
         }
 
         /// <summary>
-        /// Find all matches on the board (horizontal, vertical, L-shapes, and T-shapes).
+        /// Find all matches (3 or more tiles in a row or column).
         /// </summary>
-        private bool[,] FindAllMatches()
+        private List<Vector2Int> FindAllMatches()
         {
-            bool[,] matched = new bool[width, height];
+            List<Vector2Int> matches = new List<Vector2Int>();
 
-            // Check horizontal matches (3+ in a row)
+            // Check horizontal matches
             for (int y = 0; y < height; y++)
             {
-                for (int x = 0; x < width - 2; x++)
+                int matchCount = 1;
+                int matchValue = -1;
+                for (int x = 0; x < width; x++)
                 {
-                    int value = tiles[x, y];
-                    if (value >= 0 && value == tiles[x + 1, y] && value == tiles[x + 2, y])
+                    int currentValue = tiles[x, y];
+                    if (currentValue == matchValue && currentValue >= 0)
                     {
-                        // Extend the match to find all consecutive tiles
-                        int matchLength = 3;
-                        while (x + matchLength < width && tiles[x + matchLength, y] == value)
+                        matchCount++;
+                    }
+                    else
+                    {
+                        if (matchCount >= 3)
                         {
-                            matchLength++;
+                            for (int i = x - matchCount; i < x; i++)
+                            {
+                                matches.Add(new Vector2Int(i, y));
+                            }
+                            if (matchCount >= 4) // Create special tile for larger matches
+                            {
+                                CreateSpecialTile(x - 1, y, matchCount, isHorizontal: true);
+                            }
                         }
-                        
-                        // Mark all tiles in the match
-                        for (int i = 0; i < matchLength; i++)
-                        {
-                            matched[x + i, y] = true;
-                        }
+                        matchValue = currentValue;
+                        matchCount = 1;
+                    }
+                }
+                if (matchCount >= 3)
+                {
+                    for (int i = width - matchCount; i < width; i++)
+                    {
+                        matches.Add(new Vector2Int(i, y));
+                    }
+                    if (matchCount >= 4)
+                    {
+                        CreateSpecialTile(width - 1, y, matchCount, isHorizontal: true);
                     }
                 }
             }
 
-            // Check vertical matches (3+ in a column)
+            // Check vertical matches
             for (int x = 0; x < width; x++)
             {
-                for (int y = 0; y < height - 2; y++)
+                int matchCount = 1;
+                int matchValue = -1;
+                for (int y = 0; y < height; y++)
                 {
-                    int value = tiles[x, y];
-                    if (value >= 0 && value == tiles[x, y + 1] && value == tiles[x, y + 2])
+                    int currentValue = tiles[x, y];
+                    if (currentValue == matchValue && currentValue >= 0)
                     {
-                        // Extend the match to find all consecutive tiles
-                        int matchLength = 3;
-                        while (y + matchLength < height && tiles[x, y + matchLength] == value)
+                        matchCount++;
+                    }
+                    else
+                    {
+                        if (matchCount >= 3)
                         {
-                            matchLength++;
+                            for (int i = y - matchCount; i < y; i++)
+                            {
+                                matches.Add(new Vector2Int(x, i));
+                            }
+                            if (matchCount >= 4)
+                            {
+                                CreateSpecialTile(x, y - 1, matchCount, isHorizontal: false);
+                            }
                         }
-                        
-                        // Mark all tiles in the match
-                        for (int i = 0; i < matchLength; i++)
-                        {
-                            matched[x, y + i] = true;
-                        }
+                        matchValue = currentValue;
+                        matchCount = 1;
+                    }
+                }
+                if (matchCount >= 3)
+                {
+                    for (int i = height - matchCount; i < height; i++)
+                    {
+                        matches.Add(new Vector2Int(x, i));
+                    }
+                    if (matchCount >= 4)
+                    {
+                        CreateSpecialTile(x, height - 1, matchCount, isHorizontal: false);
                     }
                 }
             }
 
-            // Check L-shapes and T-shapes
-            FindLAndTShapes(matched);
-
-            return matched;
+            return matches;
         }
 
         /// <summary>
-        /// Find L-shapes and T-shapes for special tile creation.
+        /// Create a special tile based on match size and orientation.
         /// </summary>
-        private void FindLAndTShapes(bool[,] matched)
+        private void CreateSpecialTile(int x, int y, int matchCount, bool isHorizontal)
+        {
+            SpecialTileType type = matchCount switch
+            {
+                4 => isHorizontal ? SpecialTileType.Bomb : SpecialTileType.Lightning,
+                5 => SpecialTileType.Rainbow,
+                >= 6 => SpecialTileType.Star,
+                _ => SpecialTileType.None
+            };
+
+            if (type != SpecialTileType.None)
+            {
+                SetSpecialTile(x, y, new SpecialTile(tiles[x, y], type));
+            }
+        }
+
+        /// <summary>
+        /// Process special tiles in the matched positions.
+        /// </summary>
+        private void ProcessSpecialTiles(List<Vector2Int> matches)
+        {
+            foreach (Vector2Int pos in matches)
+            {
+                SpecialTile special = specialTiles[pos.x, pos.y];
+                if (!special.IsSpecial) continue;
+
+                switch (special.type)
+                {
+                    case SpecialTileType.Bomb:
+                        ClearBombArea(pos.x, pos.y);
+                        break;
+                    case SpecialTileType.Lightning:
+                        ClearLine(pos.x, pos.y);
+                        break;
+                    case SpecialTileType.Rainbow:
+                        ClearColor(tiles[pos.x, pos.y]);
+                        break;
+                    case SpecialTileType.Star:
+                        ClearCross(pos.x, pos.y);
+                        break;
+                }
+            }
+        }
+
+        private void ClearBombArea(int x, int y)
+        {
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    int nx = x + dx;
+                    int ny = y + dy;
+                    if (IsValidPosition(nx, ny))
+                    {
+                        lastClearedCells.Add(new Vector2Int(nx, ny));
+                    }
+                }
+            }
+        }
+
+        private void ClearLine(int x, int y)
+        {
+            for (int i = 0; i < width; i++)
+            {
+                lastClearedCells.Add(new Vector2Int(i, y));
+            }
+            for (int i = 0; i < height; i++)
+            {
+                lastClearedCells.Add(new Vector2Int(x, i));
+            }
+        }
+
+        private void ClearColor(int targetColor)
         {
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
                 {
-                    int value = tiles[x, y];
-                    if (value < 0) continue;
-
-                    // Check for L-shapes (3 horizontal + 3 vertical with intersection)
-                    if (IsLShape(x, y, value))
-                    {
-                        // Mark the L-shape tiles
-                        MarkLShape(matched, x, y, value);
-                    }
-
-                    // Check for T-shapes (3 horizontal + 3 vertical with intersection)
-                    if (IsTShape(x, y, value))
-                    {
-                        // Mark the T-shape tiles
-                        MarkTShape(matched, x, y, value);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Check if position forms an L-shape.
-        /// </summary>
-        private bool IsLShape(int x, int y, int value)
-        {
-            // Check horizontal line (3+ tiles)
-            bool hasHorizontal = false;
-            int hStart = x, hEnd = x;
-            
-            // Extend left
-            while (hStart > 0 && tiles[hStart - 1, y] == value) hStart--;
-            // Extend right
-            while (hEnd < width - 1 && tiles[hEnd + 1, y] == value) hEnd++;
-            
-            if (hEnd - hStart >= 2) hasHorizontal = true;
-
-            // Check vertical line (3+ tiles)
-            bool hasVertical = false;
-            int vStart = y, vEnd = y;
-            
-            // Extend down
-            while (vStart > 0 && tiles[x, vStart - 1] == value) vStart--;
-            // Extend up
-            while (vEnd < height - 1 && tiles[x, vEnd + 1] == value) vEnd++;
-            
-            if (vEnd - vStart >= 2) hasVertical = true;
-
-            return hasHorizontal && hasVertical;
-        }
-
-        /// <summary>
-        /// Check if position forms a T-shape.
-        /// </summary>
-        private bool IsTShape(int x, int y, int value)
-        {
-            // Check if we have a horizontal line of 3+ with a vertical line of 3+ intersecting
-            bool hasHorizontal = false;
-            int hStart = x, hEnd = x;
-            
-            // Extend left
-            while (hStart > 0 && tiles[hStart - 1, y] == value) hStart--;
-            // Extend right
-            while (hEnd < width - 1 && tiles[hEnd + 1, y] == value) hEnd++;
-            
-            if (hEnd - hStart >= 2) hasHorizontal = true;
-
-            // Check vertical line (3+ tiles)
-            bool hasVertical = false;
-            int vStart = y, vEnd = y;
-            
-            // Extend down
-            while (vStart > 0 && tiles[x, vStart - 1] == value) vStart--;
-            // Extend up
-            while (vEnd < height - 1 && tiles[x, vEnd + 1] == value) vEnd++;
-            
-            if (vEnd - vStart >= 2) hasVertical = true;
-
-            // T-shape requires the intersection point to be in the middle of the horizontal line
-            return hasHorizontal && hasVertical && (x > hStart && x < hEnd);
-        }
-
-        /// <summary>
-        /// Mark L-shape tiles for clearing.
-        /// </summary>
-        private void MarkLShape(bool[,] matched, int x, int y, int value)
-        {
-            // Mark horizontal line
-            int hStart = x, hEnd = x;
-            while (hStart > 0 && tiles[hStart - 1, y] == value) hStart--;
-            while (hEnd < width - 1 && tiles[hEnd + 1, y] == value) hEnd++;
-            
-            for (int i = hStart; i <= hEnd; i++)
-            {
-                matched[i, y] = true;
-            }
-
-            // Mark vertical line
-            int vStart = y, vEnd = y;
-            while (vStart > 0 && tiles[x, vStart - 1] == value) vStart--;
-            while (vEnd < height - 1 && tiles[x, vEnd + 1] == value) vEnd++;
-            
-            for (int i = vStart; i <= vEnd; i++)
-            {
-                matched[x, i] = true;
-            }
-        }
-
-        /// <summary>
-        /// Mark T-shape tiles for clearing.
-        /// </summary>
-        private void MarkTShape(bool[,] matched, int x, int y, int value)
-        {
-            // Mark horizontal line
-            int hStart = x, hEnd = x;
-            while (hStart > 0 && tiles[hStart - 1, y] == value) hStart--;
-            while (hEnd < width - 1 && tiles[hEnd + 1, y] == value) hEnd++;
-            
-            for (int i = hStart; i <= hEnd; i++)
-            {
-                matched[i, y] = true;
-            }
-
-            // Mark vertical line
-            int vStart = y, vEnd = y;
-            while (vStart > 0 && tiles[x, vStart - 1] == value) vStart--;
-            while (vEnd < height - 1 && tiles[x, vEnd + 1] == value) vEnd++;
-            
-            for (int i = vStart; i <= vEnd; i++)
-            {
-                matched[x, i] = true;
-            }
-        }
-
-        /// <summary>
-        /// Clear matched tiles and return the count of cleared tiles.
-        /// </summary>
-        private bool ClearMatches(bool[,] matched, out int cleared)
-        {
-            cleared = 0;
-            bool anyCleared = false;
-
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    if (matched[x, y])
+                    if (tiles[x, y] == targetColor)
                     {
                         lastClearedCells.Add(new Vector2Int(x, y));
-                        
-                        // Handle special tile effects before clearing
-                        SpecialTile specialTile = specialTiles[x, y];
-                        if (specialTile.IsSpecial)
-                        {
-                            ActivateSpecialTile(x, y, specialTile);
-                        }
-                        
-                        tiles[x, y] = -1; // Mark as empty
-                        specialTiles[x, y] = new SpecialTile(-1, SpecialTileType.None); // Clear special tile
-                        cleared++;
-                        anyCleared = true;
                     }
                 }
             }
+        }
 
-            return anyCleared;
+        private void ClearCross(int x, int y)
+        {
+            for (int i = 0; i < width; i++)
+            {
+                lastClearedCells.Add(new Vector2Int(i, y));
+            }
+            for (int i = 0; i < height; i++)
+            {
+                if (i != y) lastClearedCells.Add(new Vector2Int(x, i));
+            }
         }
 
         /// <summary>
-        /// Create special tiles based on match patterns.
+        /// Clear matched tiles from the board.
         /// </summary>
-        private void CreateSpecialTiles(bool[,] matched)
+        private void ClearMatchedTiles(List<Vector2Int> matches)
         {
-            // Find intersection points for L and T shapes
+            foreach (Vector2Int pos in matches)
+            {
+                if (IsValidPosition(pos.x, pos.y))
+                {
+                    tiles[pos.x, pos.y] = -1;
+                    specialTiles[pos.x, pos.y] = new SpecialTile(-1, SpecialTileType.None);
+                    lastClearedCells.Add(pos);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Collapse columns and refill with new tiles.
+        /// </summary>
+        private void CollapseAndRefill()
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int emptyCount = 0;
+                for (int y = 0; y < height; y++)
+                {
+                    if (tiles[x, y] == -1)
+                    {
+                        emptyCount++;
+                    }
+                    else if (emptyCount > 0)
+                    {
+                        tiles[x, y - emptyCount] = tiles[x, y];
+                        specialTiles[x, y - emptyCount] = specialTiles[x, y];
+                        tiles[x, y] = -1;
+                        specialTiles[x, y] = new SpecialTile(-1, SpecialTileType.None);
+                    }
+                }
+
+                for (int i = 0; i < emptyCount; i++)
+                {
+                    int y = height - emptyCount + i;
+                    tiles[x, y] = GetRandomTileValue();
+                    specialTiles[x, y] = new SpecialTile(tiles[x, y], SpecialTileType.None);
+                    lastSpawnedCells.Add(new Vector2Int(x, y));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Check if there are any matches on the board.
+        /// </summary>
+        public bool HasAnyMatch()
+        {
+            return FindAllMatches().Count > 0;
+        }
+
+        /// <summary>
+        /// Fill the board with random tiles, ensuring no immediate matches.
+        /// </summary>
+        private void FillBoardWithoutImmediateMatches()
+        {
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
                 {
-                    if (matched[x, y])
+                    int value;
+                    do
                     {
-                        int value = tiles[x, y];
-                        if (value < 0) continue;
-
-                        // Check for 5+ in a line (creates Lightning)
-                        if (IsFiveInLine(x, y, value))
-                        {
-                            CreateLightningTile(x, y, value);
-                        }
-                        // Check for L-shape (creates Bomb)
-                        else if (IsLShape(x, y, value))
-                        {
-                            CreateBombTile(x, y, value);
-                        }
-                        // Check for T-shape (creates Star)
-                        else if (IsTShape(x, y, value))
-                        {
-                            CreateStarTile(x, y, value);
-                        }
-                    }
+                        value = GetRandomTileValue();
+                    } while (WouldCreateMatch(x, y, value));
+                    tiles[x, y] = value;
+                    specialTiles[x, y] = new SpecialTile(value, SpecialTileType.None);
                 }
             }
         }
 
         /// <summary>
-        /// Check if position is part of a 5+ tile line.
+        /// Check if placing a tile would create an immediate match.
         /// </summary>
-        private bool IsFiveInLine(int x, int y, int value)
+        private bool WouldCreateMatch(int x, int y, int value)
         {
-            // Check horizontal line
-            int hStart = x, hEnd = x;
-            while (hStart > 0 && tiles[hStart - 1, y] == value) hStart--;
-            while (hEnd < width - 1 && tiles[hEnd + 1, y] == value) hEnd++;
-            
-            if (hEnd - hStart >= 4) return true;
-
-            // Check vertical line
-            int vStart = y, vEnd = y;
-            while (vStart > 0 && tiles[x, vStart - 1] == value) vStart--;
-            while (vEnd < height - 1 && tiles[x, vEnd + 1] == value) vEnd++;
-            
-            if (vEnd - vStart >= 4) return true;
-
+            if (x >= 2 && tiles[x - 1, y] == value && tiles[x - 2, y] == value)
+                return true;
+            if (y >= 2 && tiles[x, y - 1] == value && tiles[x, y - 2] == value)
+                return true;
             return false;
         }
 
         /// <summary>
-        /// Create a lightning tile at the specified position.
+        /// Swap two tiles on the board.
         /// </summary>
-        private void CreateLightningTile(int x, int y, int value)
+        private void SwapTiles(Vector2Int a, Vector2Int b)
         {
-            specialTiles[x, y] = new SpecialTile(value, SpecialTileType.Lightning, 1);
-            specialTilesCreated.Add(new Vector2Int(x, y));
-        }
+            int tempTile = tiles[a.x, a.y];
+            SpecialTile tempSpecial = specialTiles[a.x, a.y];
 
-        /// <summary>
-        /// Create a bomb tile at the specified position.
-        /// </summary>
-        private void CreateBombTile(int x, int y, int value)
-        {
-            specialTiles[x, y] = new SpecialTile(value, SpecialTileType.Bomb, 1);
-            specialTilesCreated.Add(new Vector2Int(x, y));
-        }
+            tiles[a.x, a.y] = tiles[b.x, b.y];
+            specialTiles[a.x, a.y] = specialTiles[b.x, b.y];
 
-        /// <summary>
-        /// Create a star tile at the specified position.
-        /// </summary>
-        private void CreateStarTile(int x, int y, int value)
-        {
-            specialTiles[x, y] = new SpecialTile(value, SpecialTileType.Star, 1);
-            specialTilesCreated.Add(new Vector2Int(x, y));
-        }
-
-        /// <summary>
-        /// Activate a special tile's effect.
-        /// </summary>
-        private void ActivateSpecialTile(int x, int y, SpecialTile specialTile)
-        {
-            switch (specialTile.type)
-            {
-                case SpecialTileType.Bomb:
-                    ActivateBombEffect(x, y, specialTile.power);
-                    break;
-                case SpecialTileType.Lightning:
-                    ActivateLightningEffect(x, y, specialTile.power);
-                    break;
-                case SpecialTileType.Star:
-                    ActivateStarEffect(x, y, specialTile.power);
-                    break;
-                case SpecialTileType.Rainbow:
-                    ActivateRainbowEffect(x, y, specialTile.power);
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Activate bomb effect (clears 3x3 area).
-        /// </summary>
-        private void ActivateBombEffect(int x, int y, int power)
-        {
-            int radius = 1 + power; // 3x3 for power 1, 5x5 for power 2, etc.
-            
-            for (int dy = -radius; dy <= radius; dy++)
-            {
-                for (int dx = -radius; dx <= radius; dx++)
-                {
-                    int targetX = x + dx;
-                    int targetY = y + dy;
-                    
-                    if (targetX >= 0 && targetX < width && targetY >= 0 && targetY < height)
-                    {
-                        if (tiles[targetX, targetY] >= 0)
-                        {
-                            lastClearedCells.Add(new Vector2Int(targetX, targetY));
-                            tiles[targetX, targetY] = -1;
-                            specialTiles[targetX, targetY] = new SpecialTile(-1, SpecialTileType.None);
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Activate lightning effect (clears entire row or column).
-        /// </summary>
-        private void ActivateLightningEffect(int x, int y, int power)
-        {
-            // Clear entire row
-            for (int i = 0; i < width; i++)
-            {
-                if (tiles[i, y] >= 0)
-                {
-                    lastClearedCells.Add(new Vector2Int(i, y));
-                    tiles[i, y] = -1;
-                    specialTiles[i, y] = new SpecialTile(-1, SpecialTileType.None);
-                }
-            }
-            
-            // Clear entire column
-            for (int i = 0; i < height; i++)
-            {
-                if (tiles[x, i] >= 0)
-                {
-                    lastClearedCells.Add(new Vector2Int(x, i));
-                    tiles[x, i] = -1;
-                    specialTiles[x, i] = new SpecialTile(-1, SpecialTileType.None);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Activate star effect (clears cross pattern).
-        /// </summary>
-        private void ActivateStarEffect(int x, int y, int power)
-        {
-            // Clear horizontal line
-            for (int i = 0; i < width; i++)
-            {
-                if (tiles[i, y] >= 0)
-                {
-                    lastClearedCells.Add(new Vector2Int(i, y));
-                    tiles[i, y] = -1;
-                    specialTiles[i, y] = new SpecialTile(-1, SpecialTileType.None);
-                }
-            }
-            
-            // Clear vertical line
-            for (int i = 0; i < height; i++)
-            {
-                if (tiles[x, i] >= 0)
-                {
-                    lastClearedCells.Add(new Vector2Int(x, i));
-                    tiles[x, i] = -1;
-                    specialTiles[x, i] = new SpecialTile(-1, SpecialTileType.None);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Activate rainbow effect (clears all tiles of one color).
-        /// </summary>
-        private void ActivateRainbowEffect(int x, int y, int power)
-        {
-            int targetValue = tiles[x, y];
-            if (targetValue < 0) return;
-            
-            for (int ty = 0; ty < height; ty++)
-            {
-                for (int tx = 0; tx < width; tx++)
-                {
-                    if (tiles[tx, ty] == targetValue)
-                    {
-                        lastClearedCells.Add(new Vector2Int(tx, ty));
-                        tiles[tx, ty] = -1;
-                        specialTiles[tx, ty] = new SpecialTile(-1, SpecialTileType.None);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Collapse tiles down to fill empty spaces and spawn new tiles at the top.
-        /// </summary>
-        private void CollapseAndRefill()
-        {
-            // Collapse tiles down
-            for (int x = 0; x < width; x++)
-            {
-                int writeY = 0;
-                for (int y = 0; y < height; y++)
-                {
-                    if (tiles[x, y] >= 0)
-                    {
-                        if (writeY != y)
-                        {
-                            tiles[x, writeY] = tiles[x, y];
-                            specialTiles[x, writeY] = specialTiles[x, y];
-                            tiles[x, y] = -1;
-                            specialTiles[x, y] = new SpecialTile(-1, SpecialTileType.None);
-                        }
-                        writeY++;
-                    }
-                }
-
-                // Fill empty spaces with new tiles
-                for (int y = writeY; y < height; y++)
-                {
-                    tiles[x, y] = GetRandomTileValue();
-                    specialTiles[x, y] = new SpecialTile(-1, SpecialTileType.None);
-                    lastSpawnedCells.Add(new Vector2Int(x, y));
-                }
-            }
+            tiles[b.x, b.y] = tempTile;
+            specialTiles[b.x, b.y] = tempSpecial;
         }
 
         /// <summary>
@@ -694,101 +510,7 @@ namespace MechanicGames.Match3
                 return theme.GetRandomTileValue();
             }
             
-            // Fallback to legacy random generation
             return random.Next(0, tileTypeCount);
-        }
-
-        /// <summary>
-        /// Swap two tiles in the array.
-        /// </summary>
-        private void SwapTiles(Vector2Int a, Vector2Int b)
-        {
-            // Swap regular tiles
-            int temp = tiles[a.x, a.y];
-            tiles[a.x, a.y] = tiles[b.x, b.y];
-            tiles[b.x, b.y] = temp;
-
-            // Swap special tiles
-            SpecialTile tempSpecial = specialTiles[a.x, a.y];
-            specialTiles[a.x, a.y] = specialTiles[b.x, b.y];
-            specialTiles[b.x, b.y] = tempSpecial;
-        }
-
-        /// <summary>
-        /// Check if there are any matches on the board.
-        /// </summary>
-        private bool HasAnyMatch()
-        {
-            // Quick check for horizontal matches
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width - 2; x++)
-                {
-                    int value = tiles[x, y];
-                    if (value >= 0 && value == tiles[x + 1, y] && value == tiles[x + 2, y])
-                        return true;
-                }
-            }
-
-            // Quick check for vertical matches
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < height - 2; y++)
-                {
-                    int value = tiles[x, y];
-                    if (value >= 0 && value == tiles[x, y + 1] && value == tiles[x, y + 2])
-                        return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Fill the board with random tiles, ensuring no immediate matches.
-        /// </summary>
-        private void FillBoardWithoutImmediateMatches()
-        {
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    int attempts = 0;
-                    int value;
-                    do
-                    {
-                        value = GetRandomTileValue();
-                        attempts++;
-                    } while (attempts < 10 && WouldCreateMatch(x, y, value));
-                    
-                    tiles[x, y] = value;
-                    specialTiles[x, y] = new SpecialTile(-1, SpecialTileType.None);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Check if placing a tile at the given position would create an immediate match.
-        /// </summary>
-        private bool WouldCreateMatch(int x, int y, int value)
-        {
-            // Check horizontal matches
-            if (x >= 2 && value == tiles[x - 1, y] && value == tiles[x - 2, y])
-                return true;
-            if (x >= 1 && x < width - 1 && value == tiles[x - 1, y] && value == tiles[x + 1, y])
-                return true;
-            if (x < width - 2 && value == tiles[x + 1, y] && value == tiles[x + 2, y])
-                return true;
-
-            // Check vertical matches
-            if (y >= 2 && value == tiles[x, y - 1] && value == tiles[x, y - 2])
-                return true;
-            if (y >= 1 && y < height - 1 && value == tiles[x, y - 1] && value == tiles[x, y + 1])
-                return true;
-            if (y < height - 2 && value == tiles[x, y + 1] && value == tiles[x, y + 2])
-                return true;
-
-            return false;
         }
     }
 }

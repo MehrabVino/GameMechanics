@@ -4,64 +4,56 @@ using System.Collections.Generic;
 namespace MechanicGames.Match3
 {
     /// <summary>
-    /// Audio manager for Match-3 game sounds and music.
+    /// Manages audio for Match-3 game, including music and sound effects.
+    /// Uses ScriptableObject for configuration and AudioSource pooling for performance.
     /// </summary>
     public sealed class Match3AudioManager : MonoBehaviour
     {
-        [Header("Audio Sources")]
+        [SerializeField] private AudioSettingsConfig audioConfig;
         [SerializeField] private AudioSource musicSource;
         [SerializeField] private AudioSource sfxSource;
         [SerializeField] private AudioSource uiSource;
-
-        [Header("Music")]
-        [SerializeField] private AudioClip backgroundMusic;
-        [SerializeField] private AudioClip victoryMusic;
-        [SerializeField] private AudioClip gameOverMusic;
-
-        [Header("Sound Effects")]
-        [SerializeField] private AudioClip tileSwapSound;
-        [SerializeField] private AudioClip tileMatchSound;
-        [SerializeField] private AudioClip tileClearSound;
-        [SerializeField] private AudioClip specialTileCreateSound;
-        [SerializeField] private AudioClip specialTileActivateSound;
-        [SerializeField] private AudioClip powerUpUseSound;
-        [SerializeField] private AudioClip objectiveCompleteSound;
-        [SerializeField] private AudioClip buttonClickSound;
-        [SerializeField] private AudioClip errorSound;
-
-        [Header("Audio Settings")]
-        [SerializeField] private float musicVolume = 0.7f;
-        [SerializeField] private float sfxVolume = 0.8f;
-        [SerializeField] private float uiVolume = 0.6f;
         [SerializeField] private bool playMusicOnStart = true;
 
-        // Audio pools for performance
-        private Queue<AudioSource> audioSourcePool;
-        private List<AudioSource> activeAudioSources;
+        private readonly List<AudioSource> audioPool = new List<AudioSource>();
+        private readonly List<AudioSource> activeSources = new List<AudioSource>();
+        private static Match3AudioManager instance;
 
-        // Singleton pattern
-        public static Match3AudioManager Instance { get; private set; }
+        public static Match3AudioManager Instance
+        {
+            get
+            {
+                if (instance == null)
+                {
+                    instance = FindObjectOfType<Match3AudioManager>();
+                    if (instance == null)
+                    {
+                        GameObject go = new GameObject(nameof(Match3AudioManager));
+                        instance = go.AddComponent<Match3AudioManager>();
+                    }
+                }
+                return instance;
+            }
+        }
 
         #region Unity Lifecycle
 
         private void Awake()
         {
-            // Singleton setup
-            if (Instance == null)
-            {
-                Instance = this;
-                DontDestroyOnLoad(gameObject);
-                InitializeAudio();
-            }
-            else
+            if (instance != null && instance != this)
             {
                 Destroy(gameObject);
+                return;
             }
+
+            instance = this;
+            DontDestroyOnLoad(gameObject);
+            InitializeAudio();
         }
 
         private void Start()
         {
-            if (playMusicOnStart && backgroundMusic != null)
+            if (playMusicOnStart && audioConfig.BackgroundMusic != null)
             {
                 PlayBackgroundMusic();
             }
@@ -69,318 +61,179 @@ namespace MechanicGames.Match3
 
         private void Update()
         {
-            UpdateActiveAudioSources();
+            UpdateAudioPool();
         }
 
         #endregion
 
         #region Initialization
 
-        /// <summary>
-        /// Initialize the audio system.
-        /// </summary>
         private void InitializeAudio()
         {
-            // Create audio source pool
-            audioSourcePool = new Queue<AudioSource>();
-            activeAudioSources = new List<AudioSource>();
-
-            // Create additional audio sources for pooling
+            // Initialize audio pool
             for (int i = 0; i < 10; i++)
             {
-                GameObject audioObj = new GameObject($"PooledAudioSource_{i}");
-                audioObj.transform.SetParent(transform);
-                AudioSource source = audioObj.AddComponent<AudioSource>();
-                source.playOnAwake = false;
-                audioSourcePool.Enqueue(source);
+                AudioSource source = CreatePooledAudioSource(i);
+                audioPool.Add(source);
             }
 
             // Set initial volumes
-            if (musicSource != null) musicSource.volume = musicVolume;
-            if (sfxSource != null) sfxSource.volume = sfxVolume;
-            if (uiSource != null) uiSource.volume = uiVolume;
+            UpdateVolumes();
+        }
 
-            Debug.Log("Match3AudioManager: Audio system initialized");
+        private AudioSource CreatePooledAudioSource(int index)
+        {
+            GameObject audioObj = new GameObject($"PooledAudioSource_{index}");
+            audioObj.transform.SetParent(transform);
+            AudioSource source = audioObj.AddComponent<AudioSource>();
+            source.playOnAwake = false;
+            return source;
+        }
+
+        private void UpdateVolumes()
+        {
+            if (musicSource != null) musicSource.volume = audioConfig.MusicVolume;
+            if (sfxSource != null) sfxSource.volume = audioConfig.SfxVolume;
+            if (uiSource != null) uiSource.volume = audioConfig.UiVolume;
         }
 
         #endregion
 
-        #region Music
+        #region Music Control
 
-        /// <summary>
-        /// Play background music.
-        /// </summary>
         public void PlayBackgroundMusic()
         {
-            if (musicSource != null && backgroundMusic != null)
-            {
-                musicSource.clip = backgroundMusic;
-                musicSource.loop = true;
-                musicSource.volume = musicVolume;
-                musicSource.Play();
-                Debug.Log("Match3AudioManager: Playing background music");
-            }
+            PlayMusic(audioConfig.BackgroundMusic, loop: true);
         }
 
-        /// <summary>
-        /// Play victory music.
-        /// </summary>
         public void PlayVictoryMusic()
         {
-            if (musicSource != null && victoryMusic != null)
-            {
-                musicSource.clip = victoryMusic;
-                musicSource.loop = false;
-                musicSource.volume = musicVolume;
-                musicSource.Play();
-                Debug.Log("Match3AudioManager: Playing victory music");
-            }
+            PlayMusic(audioConfig.VictoryMusic, loop: false);
         }
 
-        /// <summary>
-        /// Play game over music.
-        /// </summary>
         public void PlayGameOverMusic()
         {
-            if (musicSource != null && gameOverMusic != null)
-            {
-                musicSource.clip = gameOverMusic;
-                musicSource.loop = false;
-                musicSource.volume = musicVolume;
-                musicSource.Play();
-                Debug.Log("Match3AudioManager: Playing game over music");
-            }
+            PlayMusic(audioConfig.GameOverMusic, loop: false);
         }
 
-        /// <summary>
-        /// Stop background music.
-        /// </summary>
-        public void StopMusic()
-        {
-            if (musicSource != null)
-            {
-                musicSource.Stop();
-            }
-        }
+        public void StopMusic() => musicSource?.Stop();
 
-        /// <summary>
-        /// Pause background music.
-        /// </summary>
-        public void PauseMusic()
-        {
-            if (musicSource != null)
-            {
-                musicSource.Pause();
-            }
-        }
+        public void PauseMusic() => musicSource?.Pause();
 
-        /// <summary>
-        /// Resume background music.
-        /// </summary>
-        public void ResumeMusic()
+        public void ResumeMusic() => musicSource?.UnPause();
+
+        private void PlayMusic(AudioClip clip, bool loop)
         {
-            if (musicSource != null)
-            {
-                musicSource.UnPause();
-            }
+            if (musicSource == null || clip == null) return;
+
+            musicSource.clip = clip;
+            musicSource.loop = loop;
+            musicSource.volume = audioConfig.MusicVolume;
+            musicSource.Play();
         }
 
         #endregion
 
         #region Sound Effects
 
-        /// <summary>
-        /// Play tile swap sound.
-        /// </summary>
-        public void PlayTileSwapSound()
-        {
-            PlaySFX(tileSwapSound);
-        }
+        public void PlayTileSwapSound() => PlaySfx(audioConfig.TileSwapSound);
+        public void PlayTileMatchSound() => PlaySfx(audioConfig.TileMatchSound);
+        public void PlayTileClearSound() => PlaySfx(audioConfig.TileClearSound);
+        public void PlaySpecialTileCreateSound() => PlaySfx(audioConfig.SpecialTileCreateSound);
+        public void PlaySpecialTileActivateSound() => PlaySfx(audioConfig.SpecialTileActivateSound);
+        public void PlayPowerUpUseSound() => PlaySfx(audioConfig.PowerUpUseSound);
+        public void PlayObjectiveCompleteSound() => PlaySfx(audioConfig.ObjectiveCompleteSound);
+        public void PlayButtonClickSound() => PlayUi(audioConfig.ButtonClickSound);
+        public void PlayErrorSound() => PlayUi(audioConfig.ErrorSound);
 
-        /// <summary>
-        /// Play tile match sound.
-        /// </summary>
-        public void PlayTileMatchSound()
-        {
-            PlaySFX(tileMatchSound);
-        }
-
-        /// <summary>
-        /// Play tile clear sound.
-        /// </summary>
-        public void PlayTileClearSound()
-        {
-            PlaySFX(tileClearSound);
-        }
-
-        /// <summary>
-        /// Play special tile creation sound.
-        /// </summary>
-        public void PlaySpecialTileCreateSound()
-        {
-            PlaySFX(specialTileCreateSound);
-        }
-
-        /// <summary>
-        /// Play special tile activation sound.
-        /// </summary>
-        public void PlaySpecialTileActivateSound()
-        {
-            PlaySFX(specialTileActivateSound);
-        }
-
-        /// <summary>
-        /// Play power-up use sound.
-        /// </summary>
-        public void PlayPowerUpUseSound()
-        {
-            PlaySFX(powerUpUseSound);
-        }
-
-        /// <summary>
-        /// Play objective complete sound.
-        /// </summary>
-        public void PlayObjectiveCompleteSound()
-        {
-            PlaySFX(objectiveCompleteSound);
-        }
-
-        /// <summary>
-        /// Play button click sound.
-        /// </summary>
-        public void PlayButtonClickSound()
-        {
-            PlayUI(buttonClickSound);
-        }
-
-        /// <summary>
-        /// Play error sound.
-        /// </summary>
-        public void PlayErrorSound()
-        {
-            PlayUI(errorSound);
-        }
-
-        /// <summary>
-        /// Play a sound effect.
-        /// </summary>
-        public void PlaySFX(AudioClip clip, float volume = 1f)
+        private void PlaySfx(AudioClip clip, float volumeScale = 1f)
         {
             if (clip == null) return;
 
             if (sfxSource != null)
             {
-                sfxSource.PlayOneShot(clip, volume * sfxVolume);
+                sfxSource.PlayOneShot(clip, volumeScale * audioConfig.SfxVolume);
             }
             else
             {
-                PlayPooledSFX(clip, volume);
+                PlayPooledSfx(clip, volumeScale);
             }
         }
 
-        /// <summary>
-        /// Play a UI sound.
-        /// </summary>
-        public void PlayUI(AudioClip clip, float volume = 1f)
+        private void PlayUi(AudioClip clip, float volumeScale = 1f)
         {
             if (clip == null) return;
 
             if (uiSource != null)
             {
-                uiSource.PlayOneShot(clip, volume * uiVolume);
+                uiSource.PlayOneShot(clip, volumeScale * audioConfig.UiVolume);
             }
             else
             {
-                PlayPooledSFX(clip, volume);
+                PlayPooledSfx(clip, volumeScale);
             }
         }
 
-        /// <summary>
-        /// Play a sound using the audio source pool.
-        /// </summary>
-        private void PlayPooledSFX(AudioClip clip, float volume = 1f)
+        private void PlayPooledSfx(AudioClip clip, float volumeScale)
         {
-            if (audioSourcePool.Count > 0)
+            AudioSource source = GetAvailableAudioSource();
+            if (source == null) return;
+
+            source.clip = clip;
+            source.volume = volumeScale * audioConfig.SfxVolume;
+            source.Play();
+            activeSources.Add(source);
+        }
+
+        private AudioSource GetAvailableAudioSource()
+        {
+            foreach (AudioSource source in audioPool)
             {
-                AudioSource source = audioSourcePool.Dequeue();
-                source.clip = clip;
-                source.volume = volume * sfxVolume;
-                source.Play();
-                activeAudioSources.Add(source);
+                if (!activeSources.Contains(source))
+                {
+                    return source;
+                }
             }
+            return null;
         }
 
         #endregion
 
         #region Volume Control
 
-        /// <summary>
-        /// Set music volume.
-        /// </summary>
         public void SetMusicVolume(float volume)
         {
-            musicVolume = Mathf.Clamp01(volume);
-            if (musicSource != null)
-            {
-                musicSource.volume = musicVolume;
-            }
+            audioConfig.MusicVolume = Mathf.Clamp01(volume);
+            if (musicSource != null) musicSource.volume = audioConfig.MusicVolume;
         }
 
-        /// <summary>
-        /// Set SFX volume.
-        /// </summary>
-        public void SetSFXVolume(float volume)
+        public void SetSfxVolume(float volume)
         {
-            sfxVolume = Mathf.Clamp01(volume);
-            if (sfxSource != null)
-            {
-                sfxSource.volume = sfxVolume;
-            }
+            audioConfig.SfxVolume = Mathf.Clamp01(volume);
+            if (sfxSource != null) sfxSource.volume = audioConfig.SfxVolume;
         }
 
-        /// <summary>
-        /// Set UI volume.
-        /// </summary>
-        public void SetUIVolume(float volume)
+        public void SetUiVolume(float volume)
         {
-            uiVolume = Mathf.Clamp01(volume);
-            if (uiSource != null)
-            {
-                uiSource.volume = uiVolume;
-            }
+            audioConfig.UiVolume = Mathf.Clamp01(volume);
+            if (uiSource != null) uiSource.volume = audioConfig.UiVolume;
         }
 
-        /// <summary>
-        /// Get current music volume.
-        /// </summary>
-        public float MusicVolume => musicVolume;
-
-        /// <summary>
-        /// Get current SFX volume.
-        /// </summary>
-        public float SFXVolume => sfxVolume;
-
-        /// <summary>
-        /// Get current UI volume.
-        /// </summary>
-        public float UIVolume => uiVolume;
+        public float MusicVolume => audioConfig.MusicVolume;
+        public float SfxVolume => audioConfig.SfxVolume;
+        public float UiVolume => audioConfig.UiVolume;
 
         #endregion
 
-        #region Audio Source Pool Management
+        #region Audio Pool Management
 
-        /// <summary>
-        /// Update active audio sources and return finished ones to pool.
-        /// </summary>
-        private void UpdateActiveAudioSources()
+        private void UpdateAudioPool()
         {
-            for (int i = activeAudioSources.Count - 1; i >= 0; i--)
+            for (int i = activeSources.Count - 1; i >= 0; i--)
             {
-                AudioSource source = activeAudioSources[i];
-                if (!source.isPlaying)
+                if (!activeSources[i].isPlaying)
                 {
-                    activeAudioSources.RemoveAt(i);
-                    audioSourcePool.Enqueue(source);
+                    activeSources.RemoveAt(i);
                 }
             }
         }
@@ -389,14 +242,9 @@ namespace MechanicGames.Match3
 
         #region Debug
 
-        /// <summary>
-        /// Test all sound effects.
-        /// </summary>
         [ContextMenu("Test All Sounds")]
-        public void TestAllSounds()
+        private void TestAllSounds()
         {
-            Debug.Log("Match3AudioManager: Testing all sounds...");
-            
             PlayTileSwapSound();
             Invoke(nameof(PlayTileMatchSound), 0.5f);
             Invoke(nameof(PlayTileClearSound), 1f);
@@ -409,5 +257,33 @@ namespace MechanicGames.Match3
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// ScriptableObject to store audio configuration.
+    /// </summary>
+    [CreateAssetMenu(fileName = "AudioSettingsConfig", menuName = "MechanicGames/Audio Settings", order = 1)]
+    public class AudioSettingsConfig : ScriptableObject
+    {
+        [Header("Music")]
+        public AudioClip BackgroundMusic;
+        public AudioClip VictoryMusic;
+        public AudioClip GameOverMusic;
+
+        [Header("Sound Effects")]
+        public AudioClip TileSwapSound;
+        public AudioClip TileMatchSound;
+        public AudioClip TileClearSound;
+        public AudioClip SpecialTileCreateSound;
+        public AudioClip SpecialTileActivateSound;
+        public AudioClip PowerUpUseSound;
+        public AudioClip ObjectiveCompleteSound;
+        public AudioClip ButtonClickSound;
+        public AudioClip ErrorSound;
+
+        [Header("Volume Settings")]
+        [Range(0f, 1f)] public float MusicVolume = 0.7f;
+        [Range(0f, 1f)] public float SfxVolume = 0.8f;
+        [Range(0f, 1f)] public float UiVolume = 0.6f;
     }
 }

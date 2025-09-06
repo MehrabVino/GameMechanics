@@ -9,13 +9,13 @@ namespace MechanicGames.Match3
     public enum ObjectiveType
     {
         None = 0,
-        ClearTiles = 1,         // Clear a specific number of tiles
-        ClearColor = 2,         // Clear a specific number of tiles of a certain color
-        CreateSpecialTiles = 3, // Create a specific number of special tiles
-        ScoreTarget = 4,        // Reach a target score
-        MovesLimit = 5,         // Complete objectives within a move limit
-        TimeLimit = 6,          // Complete objectives within a time limit
-        ClearObstacles = 7      // Clear specific obstacle tiles
+        ClearTiles = 1,
+        ClearColor = 2,
+        CreateSpecialTiles = 3,
+        ScoreTarget = 4,
+        MovesLimit = 5,
+        TimeLimit = 6,
+        ClearObstacles = 7
     }
 
     /// <summary>
@@ -27,8 +27,8 @@ namespace MechanicGames.Match3
         public ObjectiveType type;
         public int targetValue;
         public int currentValue;
-        public int targetColor; // For color-specific objectives
-        public SpecialTileType targetSpecialType; // For special tile objectives
+        public int targetColor;
+        public SpecialTileType targetSpecialType;
         public bool isCompleted;
 
         public Objective(ObjectiveType type, int targetValue, int targetColor = -1, SpecialTileType targetSpecialType = SpecialTileType.None)
@@ -49,15 +49,12 @@ namespace MechanicGames.Match3
     /// </summary>
     public sealed class Match3Objective : MonoBehaviour
     {
-        [Header("Objective Settings")]
-        [SerializeField] private int maxObjectives = 3;
-        [SerializeField] private bool autoComplete = true;
+        [SerializeField] private ObjectiveConfig objectiveConfig;
 
-        // Objective tracking
-        private List<Objective> objectives;
-        private int movesRemaining = 30;
-        private float timeRemaining = 300f; // 5 minutes default
-        private bool isTimeLimitActive = false;
+        private List<Objective> objectives = new List<Objective>();
+        private int movesRemaining;
+        private float timeRemaining;
+        private bool isTimeLimitActive;
 
         // Events
         public System.Action<Objective> OnObjectiveCompleted { get; set; }
@@ -86,27 +83,20 @@ namespace MechanicGames.Match3
 
         #region Initialization
 
-        /// <summary>
-        /// Initialize the objective system.
-        /// </summary>
         private void InitializeObjectives()
         {
-            objectives = new List<Objective>();
+            objectives.Clear();
         }
 
         /// <summary>
         /// Set up a new level with objectives.
         /// </summary>
-        public void SetupLevel(Objective[] levelObjectives, int moves = 30, float timeLimit = 0f)
+        public void SetupLevel()
         {
-            objectives.Clear();
-            objectives.AddRange(levelObjectives);
-            
-            movesRemaining = moves;
-            timeRemaining = timeLimit;
-            isTimeLimitActive = timeLimit > 0f;
-            
-            Debug.Log($"Match3Objective: Level setup with {objectives.Count} objectives, {moves} moves, {timeLimit}s time limit");
+            objectives.AddRange(objectiveConfig.LevelObjectives);
+            movesRemaining = objectiveConfig.Moves;
+            timeRemaining = objectiveConfig.TimeLimit;
+            isTimeLimitActive = timeRemaining > 0f;
         }
 
         #endregion
@@ -118,14 +108,12 @@ namespace MechanicGames.Match3
         /// </summary>
         public void AddObjective(Objective objective)
         {
-            if (objectives.Count >= maxObjectives)
+            if (objectives.Count >= objectiveConfig.MaxObjectives)
             {
-                Debug.LogWarning("Match3Objective: Maximum objectives reached");
                 return;
             }
             
             objectives.Add(objective);
-            Debug.Log($"Match3Objective: Added {objective.type} objective");
         }
 
         /// <summary>
@@ -133,90 +121,53 @@ namespace MechanicGames.Match3
         /// </summary>
         public void UpdateObjectiveProgress(ObjectiveType type, int value, int color = -1, SpecialTileType specialType = SpecialTileType.None)
         {
+            bool updated = false;
             for (int i = 0; i < objectives.Count; i++)
             {
                 Objective obj = objectives[i];
-                
-                if (obj.isCompleted) continue;
-                
-                bool shouldUpdate = false;
-                
-                switch (type)
+                if (obj.isCompleted || !IsMatchingObjective(obj, type, color, specialType)) continue;
+
+                obj.currentValue = Mathf.Min(obj.currentValue + value, obj.targetValue);
+                objectives[i] = obj;
+                updated = true;
+
+                if (obj.currentValue >= obj.targetValue)
                 {
-                    case ObjectiveType.ClearTiles:
-                        if (obj.type == ObjectiveType.ClearTiles)
-                        {
-                            obj.currentValue += value;
-                            shouldUpdate = true;
-                        }
-                        break;
-                        
-                    case ObjectiveType.ClearColor:
-                        if (obj.type == ObjectiveType.ClearColor && obj.targetColor == color)
-                        {
-                            obj.currentValue += value;
-                            shouldUpdate = true;
-                        }
-                        break;
-                        
-                    case ObjectiveType.CreateSpecialTiles:
-                        if (obj.type == ObjectiveType.CreateSpecialTiles && obj.targetSpecialType == specialType)
-                        {
-                            obj.currentValue += value;
-                            shouldUpdate = true;
-                        }
-                        break;
-                        
-                    case ObjectiveType.ScoreTarget:
-                        if (obj.type == ObjectiveType.ScoreTarget)
-                        {
-                            obj.currentValue = value;
-                            shouldUpdate = true;
-                        }
-                        break;
-                }
-                
-                if (shouldUpdate)
-                {
-                    obj.currentValue = Mathf.Min(obj.currentValue, obj.targetValue);
-                    
-                    if (obj.currentValue >= obj.targetValue && !obj.isCompleted)
-                    {
-                        obj.isCompleted = true;
-                        OnObjectiveCompleted?.Invoke(obj);
-                        Debug.Log($"Match3Objective: Completed {obj.type} objective");
-                    }
-                    else
-                    {
-                        OnObjectiveProgress?.Invoke(obj);
-                    }
-                    
+                    obj.isCompleted = true;
                     objectives[i] = obj;
+                    OnObjectiveCompleted?.Invoke(obj);
+                }
+                else
+                {
+                    OnObjectiveProgress?.Invoke(obj);
                 }
             }
-            
-            CheckAllObjectivesCompleted();
+
+            if (updated) CheckAllObjectivesCompleted();
         }
 
-        /// <summary>
-        /// Check if all objectives are completed.
-        /// </summary>
+        private bool IsMatchingObjective(Objective obj, ObjectiveType type, int color, SpecialTileType specialType)
+        {
+            switch (type)
+            {
+                case ObjectiveType.ClearTiles:
+                    return obj.type == ObjectiveType.ClearTiles;
+                case ObjectiveType.ClearColor:
+                    return obj.type == ObjectiveType.ClearColor && obj.targetColor == color;
+                case ObjectiveType.CreateSpecialTiles:
+                    return obj.type == ObjectiveType.CreateSpecialTiles && obj.targetSpecialType == specialType;
+                case ObjectiveType.ScoreTarget:
+                    return obj.type == ObjectiveType.ScoreTarget;
+                default:
+                    return false;
+            }
+        }
+
         private void CheckAllObjectivesCompleted()
         {
-            bool allCompleted = true;
-            foreach (Objective obj in objectives)
-            {
-                if (!obj.isCompleted)
-                {
-                    allCompleted = false;
-                    break;
-                }
-            }
-            
-            if (allCompleted)
+            if (objectives.TrueForAll(o => o.isCompleted))
             {
                 OnAllObjectivesCompleted?.Invoke();
-                Debug.Log("Match3Objective: All objectives completed!");
             }
         }
 
@@ -242,9 +193,6 @@ namespace MechanicGames.Match3
             return true;
         }
 
-        /// <summary>
-        /// Update time limit.
-        /// </summary>
         private void UpdateTimeLimit()
         {
             if (timeRemaining > 0f)
@@ -264,87 +212,40 @@ namespace MechanicGames.Match3
 
         #region Getters
 
-        /// <summary>
-        /// Get all current objectives.
-        /// </summary>
         public IReadOnlyList<Objective> Objectives => objectives;
-
-        /// <summary>
-        /// Get remaining moves.
-        /// </summary>
         public int MovesRemaining => movesRemaining;
-
-        /// <summary>
-        /// Get remaining time.
-        /// </summary>
         public float TimeRemaining => timeRemaining;
-
-        /// <summary>
-        /// Check if time limit is active.
-        /// </summary>
         public bool IsTimeLimitActive => isTimeLimitActive;
 
-        /// <summary>
-        /// Get completion percentage for all objectives.
-        /// </summary>
         public float OverallProgress
         {
             get
             {
                 if (objectives.Count == 0) return 1f;
                 
-                float totalProgress = 0f;
+                float total = 0f;
                 foreach (Objective obj in objectives)
                 {
-                    totalProgress += obj.Progress;
+                    total += obj.Progress;
                 }
                 
-                return totalProgress / objectives.Count;
+                return total / objectives.Count;
             }
         }
 
         #endregion
+    }
 
-        #region Debug
-
-        /// <summary>
-        /// Create sample objectives for testing.
-        /// </summary>
-        [ContextMenu("Create Sample Objectives")]
-        public void CreateSampleObjectives()
-        {
-            objectives.Clear();
-            
-            // Clear 50 tiles
-            AddObjective(new Objective(ObjectiveType.ClearTiles, 50));
-            
-            // Clear 20 red tiles (assuming red is color 0)
-            AddObjective(new Objective(ObjectiveType.ClearColor, 20, 0));
-            
-            // Create 3 bomb special tiles
-            AddObjective(new Objective(ObjectiveType.CreateSpecialTiles, 3, -1, SpecialTileType.Bomb));
-            
-            Debug.Log("Match3Objective: Created sample objectives");
-        }
-
-        /// <summary>
-        /// Complete all objectives for testing.
-        /// </summary>
-        [ContextMenu("Complete All Objectives")]
-        public void CompleteAllObjectives()
-        {
-            for (int i = 0; i < objectives.Count; i++)
-            {
-                Objective obj = objectives[i];
-                obj.currentValue = obj.targetValue;
-                obj.isCompleted = true;
-                objectives[i] = obj;
-            }
-            
-            OnAllObjectivesCompleted?.Invoke();
-            Debug.Log("Match3Objective: All objectives completed via debug");
-        }
-
-        #endregion
+    /// <summary>
+    /// ScriptableObject for objective configuration.
+    /// </summary>
+    [CreateAssetMenu(fileName = "ObjectiveConfig", menuName = "MechanicGames/Objective Config", order = 2)]
+    public class ObjectiveConfig : ScriptableObject
+    {
+        [Header("Objective Settings")]
+        public int MaxObjectives = 3;
+        public Objective[] LevelObjectives;
+        public int Moves = 30;
+        public float TimeLimit = 300f;
     }
 }

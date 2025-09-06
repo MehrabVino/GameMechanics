@@ -8,11 +8,11 @@ namespace MechanicGames.Match3
     public enum PowerUpType
     {
         None = 0,
-        Shuffle = 1,        // Shuffles the board
-        Hammer = 2,         // Destroys a single tile
-        ColorBomb = 3,      // Destroys all tiles of one color
-        ExtraMoves = 4,     // Adds extra moves
-        ScoreMultiplier = 5 // Multiplies score for next match
+        Shuffle = 1,
+        Hammer = 2,
+        ColorBomb = 3,
+        ExtraMoves = 4,
+        ScoreMultiplier = 5
     }
 
     /// <summary>
@@ -40,14 +40,11 @@ namespace MechanicGames.Match3
     /// </summary>
     public sealed class Match3PowerUp : MonoBehaviour
     {
-        [Header("Power-up Settings")]
-        [SerializeField] private int maxPowerUps = 3;
-        [SerializeField] private float powerUpCooldown = 1f;
+        [SerializeField] private PowerUpConfig powerUpConfig;
 
-        // Power-up inventory
-        private PowerUp[] powerUpInventory;
-        private float[] powerUpCooldowns;
-        private bool isPowerUpActive;
+        private PowerUp[] inventory;
+        private float[] cooldowns;
+        private bool isActive;
 
         // Events
         public System.Action<PowerUpType> OnPowerUpUsed { get; set; }
@@ -70,19 +67,10 @@ namespace MechanicGames.Match3
 
         #region Initialization
 
-        /// <summary>
-        /// Initialize the power-up system.
-        /// </summary>
         private void InitializePowerUps()
         {
-            powerUpInventory = new PowerUp[maxPowerUps];
-            powerUpCooldowns = new float[maxPowerUps];
-            
-            for (int i = 0; i < maxPowerUps; i++)
-            {
-                powerUpInventory[i] = new PowerUp(PowerUpType.None, 0, 0f);
-                powerUpCooldowns[i] = 0f;
-            }
+            inventory = new PowerUp[powerUpConfig.MaxPowerUps];
+            cooldowns = new float[powerUpConfig.MaxPowerUps];
         }
 
         #endregion
@@ -94,68 +82,43 @@ namespace MechanicGames.Match3
         /// </summary>
         public bool AddPowerUp(PowerUpType type, int uses = 1, float effectValue = 1f)
         {
-            for (int i = 0; i < maxPowerUps; i++)
+            for (int i = 0; i < powerUpConfig.MaxPowerUps; i++)
             {
-                if (powerUpInventory[i].type == PowerUpType.None)
+                if (inventory[i].type == PowerUpType.None)
                 {
-                    powerUpInventory[i] = new PowerUp(type, uses, effectValue);
-                    Debug.Log($"Match3PowerUp: Added {type} power-up with {uses} uses");
+                    inventory[i] = new PowerUp(type, uses, effectValue);
                     return true;
                 }
             }
-            
-            Debug.LogWarning("Match3PowerUp: Inventory is full, cannot add power-up");
             return false;
         }
 
         /// <summary>
         /// Use a power-up from the inventory.
         /// </summary>
-        public bool UsePowerUp(int slotIndex)
+        public bool UsePowerUp(int slot)
         {
-            if (slotIndex < 0 || slotIndex >= maxPowerUps)
-            {
-                Debug.LogError($"Match3PowerUp: Invalid slot index {slotIndex}");
-                return false;
-            }
+            if (slot < 0 || slot >= powerUpConfig.MaxPowerUps || cooldowns[slot] > 0f || isActive) return false;
 
-            if (powerUpCooldowns[slotIndex] > 0f)
-            {
-                Debug.LogWarning("Match3PowerUp: Power-up is on cooldown");
-                return false;
-            }
+            PowerUp pu = inventory[slot];
+            if (!pu.IsValid) return false;
 
-            PowerUp powerUp = powerUpInventory[slotIndex];
-            if (!powerUp.IsValid)
+            pu.uses--;
+            if (pu.uses <= 0)
             {
-                Debug.LogWarning("Match3PowerUp: No valid power-up in slot");
-                return false;
-            }
-
-            if (isPowerUpActive)
-            {
-                Debug.LogWarning("Match3PowerUp: Another power-up is already active");
-                return false;
-            }
-
-            // Use the power-up
-            powerUp.uses--;
-            if (powerUp.uses <= 0)
-            {
-                powerUpInventory[slotIndex] = new PowerUp(PowerUpType.None, 0, 0f);
+                inventory[slot] = new PowerUp(PowerUpType.None);
             }
             else
             {
-                powerUpInventory[slotIndex] = powerUp;
+                inventory[slot] = pu;
             }
 
-            powerUpCooldowns[slotIndex] = powerUpCooldown;
-            isPowerUpActive = true;
+            cooldowns[slot] = powerUpConfig.Cooldown;
+            isActive = true;
 
-            OnPowerUpUsed?.Invoke(powerUp.type);
-            OnPowerUpActivated?.Invoke(powerUp.type);
+            OnPowerUpUsed?.Invoke(pu.type);
+            OnPowerUpActivated?.Invoke(pu.type);
 
-            Debug.Log($"Match3PowerUp: Used {powerUp.type} power-up, {powerUp.uses} uses remaining");
             return true;
         }
 
@@ -164,63 +127,26 @@ namespace MechanicGames.Match3
         /// </summary>
         public void DeactivatePowerUp()
         {
-            if (isPowerUpActive)
+            if (isActive)
             {
-                isPowerUpActive = false;
+                isActive = false;
                 OnPowerUpDeactivated?.Invoke(PowerUpType.None);
             }
         }
 
-        /// <summary>
-        /// Get power-up from inventory slot.
-        /// </summary>
-        public PowerUp GetPowerUp(int slotIndex)
-        {
-            if (slotIndex < 0 || slotIndex >= maxPowerUps)
-                return new PowerUp(PowerUpType.None, 0, 0f);
-            
-            return powerUpInventory[slotIndex];
-        }
-
-        /// <summary>
-        /// Get cooldown time for a power-up slot.
-        /// </summary>
-        public float GetCooldown(int slotIndex)
-        {
-            if (slotIndex < 0 || slotIndex >= maxPowerUps)
-                return 0f;
-            
-            return powerUpCooldowns[slotIndex];
-        }
-
-        /// <summary>
-        /// Check if a power-up slot is available.
-        /// </summary>
-        public bool IsSlotAvailable(int slotIndex)
-        {
-            if (slotIndex < 0 || slotIndex >= maxPowerUps)
-                return false;
-            
-            return powerUpInventory[slotIndex].type == PowerUpType.None;
-        }
-
-        /// <summary>
-        /// Check if any power-up is currently active.
-        /// </summary>
-        public bool IsPowerUpActive => isPowerUpActive;
+        public PowerUp GetPowerUp(int slot) => (slot >= 0 && slot < powerUpConfig.MaxPowerUps) ? inventory[slot] : new PowerUp();
+        public float GetCooldown(int slot) => (slot >= 0 && slot < powerUpConfig.MaxPowerUps) ? cooldowns[slot] : 0f;
+        public bool IsSlotAvailable(int slot) => (slot >= 0 && slot < powerUpConfig.MaxPowerUps) && inventory[slot].type == PowerUpType.None;
+        public bool IsPowerUpActive => isActive;
 
         #endregion
 
         #region Power-up Effects
 
-        /// <summary>
-        /// Apply shuffle power-up effect.
-        /// </summary>
         public void ApplyShuffleEffect(Match3Board board)
         {
             if (board == null) return;
             
-            // Shuffle the board by swapping random tiles
             for (int i = 0; i < 100; i++)
             {
                 int x1 = Random.Range(0, board.Width);
@@ -228,37 +154,24 @@ namespace MechanicGames.Match3
                 int x2 = Random.Range(0, board.Width);
                 int y2 = Random.Range(0, board.Height);
                 
-                // Swap tiles
                 int temp = board.GetTile(x1, y1);
                 board.SetTile(x1, y1, board.GetTile(x2, y2));
                 board.SetTile(x2, y2, temp);
             }
-            
-            Debug.Log("Match3PowerUp: Applied shuffle effect");
         }
 
-        /// <summary>
-        /// Apply hammer power-up effect.
-        /// </summary>
         public void ApplyHammerEffect(Match3Board board, Vector2Int position)
         {
             if (board == null) return;
             
-            // Clear the tile at the specified position
             board.SetTile(position.x, position.y, -1);
             board.SetSpecialTile(position.x, position.y, new SpecialTile(-1, SpecialTileType.None));
-            
-            Debug.Log($"Match3PowerUp: Applied hammer effect at {position}");
         }
 
-        /// <summary>
-        /// Apply color bomb power-up effect.
-        /// </summary>
         public void ApplyColorBombEffect(Match3Board board, int targetColor)
         {
             if (board == null) return;
             
-            // Clear all tiles of the target color
             for (int y = 0; y < board.Height; y++)
             {
                 for (int x = 0; x < board.Width; x++)
@@ -270,52 +183,34 @@ namespace MechanicGames.Match3
                     }
                 }
             }
-            
-            Debug.Log($"Match3PowerUp: Applied color bomb effect for color {targetColor}");
         }
 
         #endregion
 
         #region Cooldown Management
 
-        /// <summary>
-        /// Update power-up cooldowns.
-        /// </summary>
         private void UpdateCooldowns()
         {
-            for (int i = 0; i < maxPowerUps; i++)
+            for (int i = 0; i < powerUpConfig.MaxPowerUps; i++)
             {
-                if (powerUpCooldowns[i] > 0f)
+                if (cooldowns[i] > 0f)
                 {
-                    powerUpCooldowns[i] -= Time.deltaTime;
-                    if (powerUpCooldowns[i] < 0f)
-                    {
-                        powerUpCooldowns[i] = 0f;
-                    }
+                    cooldowns[i] -= Time.deltaTime;
+                    cooldowns[i] = Mathf.Max(cooldowns[i], 0f);
                 }
             }
         }
 
         #endregion
+    }
 
-        #region Debug
-
-        /// <summary>
-        /// Debug method to add random power-ups.
-        /// </summary>
-        [ContextMenu("Add Random Power-ups")]
-        public void AddRandomPowerUps()
-        {
-            for (int i = 0; i < maxPowerUps; i++)
-            {
-                if (IsSlotAvailable(i))
-                {
-                    PowerUpType randomType = (PowerUpType)Random.Range(1, System.Enum.GetValues(typeof(PowerUpType)).Length);
-                    AddPowerUp(randomType, Random.Range(1, 4), Random.Range(1f, 3f));
-                }
-            }
-        }
-
-        #endregion
+    /// <summary>
+    /// ScriptableObject for power-up configuration.
+    /// </summary>
+    [CreateAssetMenu(fileName = "PowerUpConfig", menuName = "MechanicGames/PowerUp Config", order = 3)]
+    public class PowerUpConfig : ScriptableObject
+    {
+        public int MaxPowerUps = 3;
+        public float Cooldown = 1f;
     }
 }
